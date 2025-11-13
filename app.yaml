@@ -1,0 +1,18 @@
+runtime: nodejs22
+
+instance_class: F1
+
+env_variables:
+  PORT: 8080
+  NODE_ENV: production
+
+automatic_scaling:
+  min_instances: 1
+  max_instances: 2
+  target_cpu_utilization: 0.95
+
+handlers:
+- url: /static
+  static_dir: Client/static
+  secure: always
+  redirect_http_response_code: 301

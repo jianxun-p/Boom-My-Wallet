@@ -1,0 +1,163 @@
+const express = require('express');
+const crypto = require('crypto');
+const path = require('path');
+const admin = require("firebase-admin");
+const { ApplicationsClient } = require('@google-cloud/appengine-admin').v1;
+const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
+
+const config = require(path.join(__dirname, '..', 'boommywallet-config.json'));
+const secret = require('./secrets');
+
+console.log('process.env', process.env);
+
+const app = express();
+app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
+app.use(express.static(path.join(__dirname, '..', 'Client', 'static')));
+app.use(bodyParser.json());
+app.use(cookieParser());
+
+const appengineClient = new ApplicationsClient();
+
+let HOST = {
+    PROTOCOL: 'http',
+    HOSTNAME: 'localhost',
+    PORT: process.env.PORT ?? 5000,
+    ADDRESS: `localhost:${process.env.PORT ?? 5000}`
+};
+
+async function getHostname() {
+    
+    if (process.env.NODE_ENV !== 'production') {    // https://docs.cloud.google.com/appengine/docs/standard/nodejs/runtime
+        console.log('Host:', HOST);
+        return;
+    }
+    // https://cloud.google.com/appengine/docs/admin-api/reference/rest/v1beta/apps/get
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT ?? config.gcp.projectId;
+    const [response] = await appengineClient.getApplication({
+        name: `apps/${projectId}`
+    });
+    console.log('app engine client response', response);
+    if (response.servingStatus === 'SERVING') {
+        HOST.PROTOCOL = 'https';
+        HOST.HOSTNAME = response.defaultHostname;
+        HOST.ADDRESS = HOST.HOSTNAME;
+    }
+    console.log('Host:', HOST);
+}
+
+
+app.get('/', (_req, res) => {
+    res.redirect('/index.html');
+});
+
+const gauthHmacKey = [];
+crypto.generateKey('hmac', {length: 512}, (err, key) => { if (err) throw err; gauthHmacKey.push(key); })
+crypto.generateKey('hmac', {length: 512}, (err, key) => { if (err) throw err; gauthHmacKey.push(key); });
+setInterval(
+    async () => { 
+        crypto.generateKey('hmac', {length: 512}, (err, key) => { 
+            if (err) {
+                console.error(`[${new Date().toUTCString()}] Failed generating HMAC keys for Google OAuth2.0 state:`, err); 
+                return;
+            }
+            [gauthHmacKey[0], gauthHmacKey[1]] = [gauthHmacKey[1], key];
+        }); 
+    }, 
+    600000   // every 10 minutes
+);     
+
+const GOOGLE_OAUTH_REDIRECT_PATH = '/oauth/google/callback';
+app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
+    if (req.query.error) {
+        res.redirect(307, '/login?' + (new URLSearchParams(req.query)).toString());
+    }
+    const reqState = req.query.state;
+    const statePayload = gauthHmacKey.reduceRight((acc, key) => {
+        try {
+            return jwt.verify(reqState, key, { algorithm: 'HS512', maxAge: 3 * 60 })
+        } catch (e) {
+            return acc;
+        }
+    }, null);
+    if (statePayload === null || statePayload.ip !== req.ip || statePayload.ua !== req.headers['user-agent']) {
+        console.log(GOOGLE_OAUTH_REDIRECT_PATH, statePayload);
+        return res.sendStatus(401);
+    }
+    const body = new URLSearchParams({
+        code: req.query.code,
+        client_id: (await secret.get('secrets')).google_oauth.web.client_id,
+        client_secret: (await secret.get('secrets')).google_oauth.web.client_secret,
+        grant_type: 'authorization_code',
+        redirect_uri: `${HOST.PROTOCOL}://${HOST.ADDRESS}${GOOGLE_OAUTH_REDIRECT_PATH}`
+    });
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+    }).then(res => res.json());
+    const cookiesOption = {
+        maxAge: 1000 * (response.expires_in - 10), 
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: true
+    };
+    res.cookie('access_token', response.access_token, cookiesOption);
+    res.cookie('id_token', response.id_token, cookiesOption);
+    res.redirect(307, '/index.html');
+});
+
+app.get('/oauth/google/access_token', (req, res) => {
+    if (req.cookies.access_token) {
+        res.json({ access_token: req.cookies.access_token });
+    } else {
+        return res.status(401).json({ error: { message: "Unauthorized" } });
+    }
+})
+
+const AUTH_SCOPES = [
+    'openid', 
+    'https://www.googleapis.com/auth/userinfo.email', 
+    'https://www.googleapis.com/auth/userinfo.profile', 
+    'https://www.googleapis.com/auth/drive.file'
+].join(' ');
+app.get('/oauth/google/login', async (req, res) => {
+    const statePayload = { 
+        ts: Date.now(), 
+        ip: req.ip, 
+        ua: req.headers['user-agent'] 
+    };
+    console.log('/oauth/google/login', statePayload);
+    const queryParams = new URLSearchParams({
+        client_id: (await secret.get('secrets')).google_oauth.web.client_id,
+        // redirect_uri: `https://boommywallet.uk.r.appspot.com/auth`,
+        redirect_uri: `${HOST.PROTOCOL}://${HOST.ADDRESS}${GOOGLE_OAUTH_REDIRECT_PATH}`,
+        response_type: 'code',
+        access_type: 'offline',     // also get refresh token
+        scope: AUTH_SCOPES,
+        prompt: 'consent',
+        state: jwt.sign(statePayload, gauthHmacKey[gauthHmacKey.length - 1], { algorithm: 'HS512', expiresIn: 9 * 60 })    // 9 mins
+    });
+    const authUri = 'https://accounts.google.com/o/oauth2/v2/auth?' + queryParams.toString();
+    res.cookie("google_oauth_uri", authUri, { maxAge: 10000, secure: true, sameSite: true, path: '/login.html' }) // 10 sec (should be enough for client to pickup)
+    res.header('X-Frame-Options', 'DENY');
+    const redirectParams = (new URLSearchParams(req.query)).toString();
+    res.redirect(307, `/login.html${redirectParams.length > 0 ? '?' : ''}${redirectParams}`);
+});
+
+
+secret.init()
+.then(getHostname)
+.then(async () => {
+    admin.initializeApp({
+        credential: admin.credential.cert((await secret.get('secrets')).service_account),
+    });
+    database = admin.firestore();
+})
+.then(() => {
+    app.listen(HOST.PORT, () => console.log(`Server running on ${HOST.PROTOCOL}://${HOST.ADDRESS}`))
+	.on('error', e => console.error('Error starting server:', e));
+});
+
+
