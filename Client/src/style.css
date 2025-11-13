@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+:root {
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+	line-height: 1.5;
+	font-weight: 400;
+
+	color-scheme: light dark;
+	color: rgba(255, 255, 255, 0.87);
+	background-color: #242424;
+
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+
+@media (prefers-color-scheme: light) {
+	:root {
+		color: #213547;
+		background-color: #ffffff;
+	}
+	a:hover {
+		color: #747bff;
+	}
+	/* button {
+		background-color: #ffbb00;
+	} */
+    input {
+        border: solid;
+        border-width: 2px;
+        border-radius: 8px;
+    }
+}
+
+@layer components {
+    :root {
+        --menubar-width: 50px;
+        --menubar-max-width: 200px;
+    }
+    .menu-bar {
+        @apply 
+        fixed z-100000 left-0 top-0 h-screen
+        grid grid-rows-2 grid-cols-1
+        bg-green-300 
+        transition-all w-(--menubar-width) hover:w-(--menubar-max-width) duration-300 ease-in-out 
+        items-center justify-between;
+    }
+    .menu-bar-item-wrapper {
+        --menubar-item-margin: 0.25rem;
+        --menubar-item-width: calc(var(--menubar-width) - 2*var(--menubar-item-margin));
+        --menubar-item-max-width: calc(var(--menubar-max-width) - 2*var(--menubar-item-margin));
+        @apply m-(--menubar-item-margin) h-(--menubar-item-width) 
+        items-center
+        overflow-hidden 
+        hover:bg-[#ffffff50]
+        font-[cursive]
+        border rounded-sm border-[#00000020] shadow-[#00000080] shadow-md;
+    }
+    .menu-bar-item {
+        @apply 
+        items-center content-center
+        w-(--menubar-item-max-width) h-full
+        flex-row
+        flex
+        justify-between
+        hover:cursor-pointer;
+    }
+    .menu-bar-item-logo {
+        @apply size-(--menubar-item-width) text-center items-center content-center;
+    }
+    .menu-bar-item-text {
+        --menubar-item-text-padding: 1rem;
+        --menubar-item-text-width: calc(var(--menubar-item-max-width) - var(--menubar-item-width));
+        @apply w-(--menubar-item-text-width) text-center px-(--menubar-item-text-padding);
+    }
+    .content-wrapper {
+        @apply left-(--menubar-width) absolute right-0 overflow-auto bottom-0 top-0 wrap-break-word;
+    }
+
+}
+

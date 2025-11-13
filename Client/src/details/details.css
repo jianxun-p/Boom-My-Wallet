@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@layer components {
+    .transaction-wrapper {
+        --width: calc(min(80%, 900px));
+        @apply
+        absolute 
+        m-auto w-(--width) left-[calc(50vw-0.5*var(--width))];
+    }
+    .add-transaction-btn {
+        @apply rounded-2xl shadow-xl bg-amber-300
+        hover:scale-[105%] hover:bg-amber-400 hover:cursor-pointer
+        text-center p-2 mx-8
+        fixed bottom-0 right-0 m-4 z-50;
+    }
+    section {
+        @apply rounded-2xl border-solid shadow-xl border-amber-300 border-2 bg-amber-300
+        p-2 m-8;
+    }
+    h1{
+        @apply
+        w-full
+        justify-center
+        p-4 font-bold font-mono text-5xl;
+    }
+    h2{
+        @apply
+        w-full
+        justify-center
+        p-3 font-bold font-mono text-3xl;
+    }
+    .transaction-content{
+        @apply
+        w-full;
+    }
+    .transaction-header-row {
+        @apply 
+        w-full p-2
+        grid grid-cols-5 grid-rows-1
+        rounded-xl shadow-2xs bg-[#c68800a0]
+    }
+    .transaction-item {
+        @apply 
+        w-full p-2
+        grid grid-cols-5 grid-rows-1 items-center
+        rounded-xl shadow-2xs bg-amber-50
+        duration-150
+        hover:scale-[102%] hover:cursor-pointer hover:bg-amber-100;
+    }
+    .transaction-item-time {
+        @apply col-span-2;
+    }
+    .transaction-item-merchant {
+        @apply col-span-1;
+    }
+    .transaction-item-category {
+        @apply col-span-1;
+    }
+    .transaction-item-amount {
+        @apply col-span-1 justify-end;
+    }
+}
+
+@layer components {
+
+    .modal {
+        --modal-width: calc(100vw - var(--menubar-width));
+        @apply open:backdrop-blur-xs open:bg-[#00000050] open:opacity-100 transition-opacity not-open:opacity-0 not-open:invisible open:visible
+        fixed top-0 bottom-0 left-(--menubar-width) right-0 z-100 duration-300;
+    }
+    .modal-content {
+        --width: calc(min(var(--modal-width), 600px));
+        --height: calc(min(100vh, 800px));
+        @apply bg-[#f3ffac] absolute overflow-auto
+        rounded-2xl p-8
+        m-auto w-(--width) h-(--height) left-[calc(0.5*var(--modal-width)-0.5*var(--width))] top-[calc(50vh-0.5*var(--height))];
+    }
+}
+
+
+@layer components {
+    button {
+		@apply p-2 rounded-sm hover:cursor-pointer w-full;
+	}
+    input {
+        @apply p-2 rounded-sm bg-amber-50 hover:bg-amber-100 hover:cursor-pointer w-full;
+    }
+    textarea {
+        @apply overflow-auto p-2 border-solid border-2 rounded-sm bg-amber-50 hover:bg-amber-100 hover:cursor-pointer w-full;
+    }
+    .dropdown-container {
+        @apply relative w-full;
+    }
+    .dropdown-list {
+        @apply h-50 overflow-auto z-10 w-full absolute bg-amber-50;
+    }
+    .dropdown-list-item {
+        @apply p-1 hover:bg-amber-100 w-full;
+    }
+}
+
+@layer components {
+
+    .date-selector-container {
+        @apply relative flex flex-row justify-between items-center;
+    }
+}
+
