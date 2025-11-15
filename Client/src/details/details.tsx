@@ -72,12 +72,12 @@ interface State<T> {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-function DropDownList(props: { list: Displayable[], val: State<string>, dropdownRef: React.RefObject<HTMLDivElement[]>, noInput: boolean, allowChoose: boolean }) {
+function DropDownList(props: { list: Displayable[], val: State<string>, dropdownRef?: React.RefObject<HTMLDivElement[]>, noInput: boolean, allowChoose: boolean }) {
     const [open, setOpen] = useState(false);
     const className = `dropdown-container`;
     return <div className={className}>
         <input className='dropdown' value={props.val.get} readOnly={props.noInput} onChange={(e) => props.val.set(e.target.value)} onClick={() => setOpen(prev => !prev)}/>
-        <div className={open && props.allowChoose ? 'dropdown-list' : 'dropdown-list hidden'} ref={e => { if (e) props.dropdownRef.current.push(e)}}>
+        <div className={open && props.allowChoose ? 'dropdown-list' : 'dropdown-list hidden'} ref={e => { if (e && props.dropdownRef) props.dropdownRef.current.push(e)}}>
             {props.list.map(i => {return <div className='dropdown-list-item' onClick={()=>{props.val.set(i.toString());setOpen(false);}}>{i.toString()}</div>;})}
         </div>
     </div>
@@ -129,7 +129,15 @@ function formatMoney(amount: string): string {
 
 
 
-function DetailModal(props: {transaction: State<Transaction | null>, spreadsheet: State<Spreadsheet>, accessToken: string}) {
+function DetailModal(
+    props: {
+        transaction: State<Transaction | null>, 
+        spreadsheet: State<Spreadsheet>, 
+        accessToken: string, 
+        categories: State<string[]>,
+        paymentMethods: State<string[]>,
+    }
+) {
 
     const modalContentRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement[]>([]);
@@ -142,6 +150,16 @@ function DetailModal(props: {transaction: State<Transaction | null>, spreadsheet
         () => props.spreadsheet.get.sheets.filter(sheet => sheet.name === TRANSACTION_SHEET_NAME)[0] ?? {name: TRANSACTION_SHEET_NAME, columns: [], values: []}, 
         [props.spreadsheet.get.sheets]
     );
+    useEffect(()=>{ setAmount(editMode ? restrictMoneyInput : formatMoney); }, [editMode]);
+    const [category, setCategory] = useState<string>(props.transaction.get?.category ?? props.categories.get[0] ?? "");
+    useEffect(()=>{
+        setCategory(props.transaction.get?.category ?? props.categories.get[0] ?? "");
+    }, [props.transaction.get?.category, props.categories.get]);
+    useEffect(()=>{ setAmount(editMode ? restrictMoneyInput : formatMoney); }, [editMode]);
+    const [paymentMethod, setpaymentMethod] = useState<string>(props.transaction.get?.paymentMethod ?? props.paymentMethods.get[0] ?? "");
+    useEffect(()=>{
+        setpaymentMethod(props.transaction.get?.paymentMethod ?? props.paymentMethods.get[0] ?? "");
+    }, [props.transaction.get?.paymentMethod, props.paymentMethods.get]);
 
     function closeWhenClickOutside(e: React.MouseEvent) {
         if (modalContentRef.current && !modalContentRef.current.contains(e.target as Node))
@@ -181,8 +199,49 @@ function DetailModal(props: {transaction: State<Transaction | null>, spreadsheet
         return (e: React.MouseEvent) => { funcs.forEach(f => f(e)); };
     }
     
+    const setCategoryHandler = (c: string | ((prev:string)=>string)) => {
+        let newCategory = '';
+        if (typeof c === 'string') {
+            newCategory = c;
+            setCategory(c);
+        } else {
+            setCategory((prev) => {newCategory = c(prev); return newCategory;});
+        }
+        props.transaction.set((prev: Transaction | null) => {
+            const newTran = cloneTransaction(prev);
+            newTran.category = newCategory;
+            return newTran;
+        });
+        props.categories.set((prev)=>{
+            if (prev.indexOf(newCategory) >= 0) return prev;
+            const a = [...prev];
+            a.push(newCategory);
+            return a;
+        });
+    };
 
-    useEffect(()=>{ setAmount(editMode ? restrictMoneyInput : formatMoney); }, [editMode]);
+    const setPaymentMethodHandler = (c: string | ((prev:string)=>string)) => {
+        let newPaymentMethod = '';
+        if (typeof c === 'string') {
+            newPaymentMethod = c;
+            setpaymentMethod(c);
+        } else {
+            setpaymentMethod((prev) => {newPaymentMethod = c(prev); return newPaymentMethod;});
+        }
+        props.transaction.set((prev: Transaction | null) => {
+            const newTran = cloneTransaction(prev);
+            newTran.paymentMethod = newPaymentMethod;
+            return newTran;
+        });
+        props.categories.set((prev)=>{
+            if (prev.indexOf(newPaymentMethod) >= 0) return prev;
+            const a = [...prev];
+            a.push(newPaymentMethod);
+            return a;
+        });
+    };
+
+
     const setAmountHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
         setAmount((prev: string) => {
             try {
@@ -193,13 +252,6 @@ function DetailModal(props: {transaction: State<Transaction | null>, spreadsheet
             }
         });
     };
-    const setCategoryHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
-        props.transaction.set((prev: Transaction | null) => {
-            const newTran = cloneTransaction(prev);
-            newTran.category = e.target.value;
-            return newTran;
-        });
-    };
     const setMerchantHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
         props.transaction.set((prev: Transaction | null) => {
             const newTran = cloneTransaction(prev);
@@ -207,13 +259,13 @@ function DetailModal(props: {transaction: State<Transaction | null>, spreadsheet
             return newTran;
         });
     };
-    const setPaymentMethodHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
-        props.transaction.set((prev: Transaction | null) => {
-            const newTran = cloneTransaction(prev);
-            newTran.paymentMethod = e.target.value;
-            return newTran;
-        });
-    };
+    // const setPaymentMethodHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
+    //     props.transaction.set((prev: Transaction | null) => {
+    //         const newTran = cloneTransaction(prev);
+    //         newTran.paymentMethod = e.target.value;
+    //         return newTran;
+    //     });
+    // };
     const setLocationHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
         props.transaction.set((prev: Transaction | null) => {
             const newTran = cloneTransaction(prev);
@@ -252,7 +304,11 @@ function DetailModal(props: {transaction: State<Transaction | null>, spreadsheet
                 sheets: spread.sheets,
             };
         });
-        updateValues(props.accessToken, props.spreadsheet.get.id, rangeA1(TRANSACTION_SHEET_NAME, [0, v.row+1], [row.length-1,v.row+1]), [row]);
+        updateValues(props.accessToken, props.spreadsheet.get.id, rangeA1(TRANSACTION_SHEET_NAME, [0, v.row+1], [row.length-1,v.row+1]), [row])
+        .then(data => {
+            console.log('updateValues', data); 
+            alert(data.updatedRows === 1 ? 'Saved' : 'Error occured while saving');
+        });
         return v;
     }
     function deleteTransaction(v: Transaction | null) {
@@ -270,7 +326,7 @@ function DetailModal(props: {transaction: State<Transaction | null>, spreadsheet
                 sheets: spread.sheets,
             };
         });
-        deleteRow(props.accessToken, props.spreadsheet.get.id, transactionSheet.id, (v.row ?? 0) + 1)
+        deleteRow(props.accessToken, props.spreadsheet.get.id, transactionSheet.id, (v.row ?? 0) + 1).then(data => console.log('deleteRow', data));
         return v;
     }
     return <div className='modal' {...(props.transaction.get !== null && {open: props.transaction.get !== null})} onClick={chainMouseEventFuncCals([formatMoneyClickOutside, closeWhenClickOutside, closeDropdownClickOutside(dropdownRef)])}>
@@ -285,11 +341,16 @@ function DetailModal(props: {transaction: State<Transaction | null>, spreadsheet
                 <strong>Amount</strong>
                 <div className='col-span-3'><input readOnly={!editMode} value={amount} onChange={setAmountHandler} ref={amountRef} /></div>
                 <strong>Category</strong>
-                <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.category ?? ''} onChange={setCategoryHandler} /></div>
+                <div className='col-span-3'>
+                    <DropDownList allowChoose={editMode} noInput={!editMode} val={{get:category,set:setCategoryHandler}} dropdownRef={dropdownRef} list={props.categories.get} />
+                </div>
                 <strong>Merchant</strong>
                 <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.merchant ?? ''} onChange={setMerchantHandler} /></div>
                 <strong>Payment Method</strong>
-                <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.paymentMethod ?? ''} onChange={setPaymentMethodHandler} /></div>
+                {/* <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.paymentMethod ?? ''} onChange={setPaymentMethodHandler} /></div> */}
+                <div className='col-span-3'>
+                    <DropDownList allowChoose={editMode} noInput={!editMode} val={{get:paymentMethod,set:setPaymentMethodHandler}} dropdownRef={dropdownRef} list={props.paymentMethods.get} />
+                </div>
                 <strong>Location</strong>
                 <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.location ?? ''} onChange={setLocationHandler} /></div>
                 <strong>Position</strong>
@@ -316,6 +377,8 @@ export default function Details({spreadsheet, accessToken}: {spreadsheet: State<
         () => spreadsheet.get.sheets.filter(sheet => sheet.name === TRANSACTION_SHEET_NAME)[0] ?? {name: TRANSACTION_SHEET_NAME, columns: [], values: []}, 
         [spreadsheet.get.sheets]
     );
+    const [categories, setCategories] = useState<string[]>([]);
+    const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
     useEffect(() => {
         const columnIndex = new Map(transactionSheet.columns.map((column, i) => [column, i]));
         const t = transactionSheet.values.map((row, rowI) => {
@@ -332,6 +395,8 @@ export default function Details({spreadsheet, accessToken}: {spreadsheet: State<
                 description: (row[columnIndex.get('Description') ?? -1] ?? '').toString(),
             };
         }).sort((a, b) => b.time.valueOf() - a.time.valueOf());     // most recent to oldest
+        setCategories([...(new Set(t.map(tran => tran.category))).keys()]);
+        setPaymentMethods([...(new Set(t.map(tran => tran.paymentMethod))).keys()]);
         const isSameMonth = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
         const tByMonth = [];
         for (let i = 0; i < t.length; ) {
@@ -347,7 +412,13 @@ export default function Details({spreadsheet, accessToken}: {spreadsheet: State<
     const [transactionDetail, setTransactionDetail] = useState<Transaction | null>(null);
 
     return <>
-    <DetailModal transaction={{get: transactionDetail, set: setTransactionDetail}} spreadsheet={spreadsheet} accessToken={accessToken} />
+    <DetailModal 
+        transaction={{get: transactionDetail, set: setTransactionDetail}} 
+        spreadsheet={spreadsheet} 
+        accessToken={accessToken} 
+        categories={{get: categories, set: setCategories}}
+        paymentMethods={{get: paymentMethods, set: setPaymentMethods}}
+    />
     <div className='add-transaction-btn' onClick={() => setTransactionDetail(newEmptyTransaction(transactionSheet.values.length))}>➕</div>
     <div className='transaction-wrapper'>
         <h1 className='transaction-header text-center pb-0 pt-8'>Details</h1>
