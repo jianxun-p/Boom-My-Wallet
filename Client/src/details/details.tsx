@@ -20,6 +20,7 @@ interface Transaction {
     position: string,
     description: string,
 };
+type TransactionStringField = 'amount' | 'category' | 'name' | 'merchant' | 'paymentMethod' | 'location' | 'position' | 'description';
 
 function newEmptyTransaction(row?: number): Transaction {
     return { row: row ?? -1, time: new Date(), amount: '0', category: '', name: '', merchant: '', paymentMethod: '', location: '', position: '', description: '', };
@@ -27,18 +28,7 @@ function newEmptyTransaction(row?: number): Transaction {
 
 function cloneTransaction(transaction: Transaction | null): Transaction {
     if (!transaction) return newEmptyTransaction();
-    return {
-        row: transaction.row,
-        time: transaction.time,
-        amount: transaction.amount,
-        category: transaction.category,
-        name: transaction.name,
-        merchant: transaction.merchant,
-        paymentMethod: transaction.paymentMethod,
-        location: transaction.location,
-        position: transaction.position,
-        description: transaction.description,
-    };
+    return Object.assign({}, transaction);
 }
 
 function HeaderRow() {
@@ -71,27 +61,58 @@ interface State<T> {
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const THIS_YEAR = new Date().getFullYear();
+const START_YEAR = 2000;
+const YEARS = [...Array(THIS_YEAR - START_YEAR).keys()].map(i => THIS_YEAR - i);
 
-function DropDownList(props: { list: Displayable[], val: State<string>, dropdownRef?: React.RefObject<HTMLDivElement[]>, noInput: boolean, allowChoose: boolean }) {
+type ClickHander = (event: React.MouseEvent<Node>) => void;
+
+function DropDownList(
+    props: { 
+        list: Displayable[], 
+        val: State<string>, 
+        noInput: boolean, 
+        allowChoose: boolean, 
+        closeHandler: React.RefObject<ClickHander>, 
+    }
+) {
     const [open, setOpen] = useState(false);
-    const className = `dropdown-container`;
-    return <div className={className}>
-        <input className='dropdown' value={props.val.get} readOnly={props.noInput} onChange={(e) => props.val.set(e.target.value)} onClick={() => setOpen(prev => !prev)}/>
-        <div className={open && props.allowChoose ? 'dropdown-list' : 'dropdown-list hidden'} ref={e => { if (e && props.dropdownRef) props.dropdownRef.current.push(e)}}>
+    const inputRef = useRef<HTMLInputElement>(null);
+    props.closeHandler.current = (event: React.MouseEvent<Node>) => {
+        if (inputRef.current && !inputRef.current.contains(event.target as Node))
+            return setOpen(false);
+        setOpen(prev => !prev);
+    };
+    return <div className='dropdown-container'>
+        <input className='dropdown' value={props.val.get} readOnly={props.noInput} onChange={(e) => props.val.set(e.target.value)} ref={inputRef} />
+        <div className={open && props.allowChoose ? 'dropdown-list h-52' : 'dropdown-list h-0'}>
             {props.list.map(i => {return <div className='dropdown-list-item' onClick={()=>{props.val.set(i.toString());setOpen(false);}}>{i.toString()}</div>;})}
         </div>
     </div>
 }
 
-
-function DatetimeSelector(props: { date: State<Date | null>, dropdownRef: React.RefObject<HTMLDivElement[]>, noInput: boolean, allowChoose: boolean }) {
-    const now = new Date();
-    const [year, setYear] = useState(now.getFullYear().toString().padStart(2,'0'));
-    const [month, setMonth] = useState(MONTHS[now.getMonth()].padStart(2,'0'));
-    const [day, setDay] = useState(now.getDate().toString().padStart(2,'0'));
-    const [hour, setHour] = useState(now.getHours().toString().padStart(2,'0'));
-    const [minute, setMinute] = useState(now.getMinutes().toString().padStart(2,'0'));
-    const [second, setSecond] = useState(now.getSeconds().toString().padStart(2,'0'));
+function DatetimeSelector(
+    props: { 
+        date: State<Date>, 
+        noInput: boolean, 
+        allowChoose: boolean, 
+        closeHandler: React.RefObject<ClickHander>, 
+    }
+) {
+    const [year, setYear] = useState('');
+    const [month, setMonth] = useState('');
+    const [day, setDay] = useState('');
+    const [hour, setHour] = useState('');
+    const [minute, setMinute] = useState('');
+    const [second, setSecond] = useState('');
+    useEffect(() => {
+        setYear(props.date.get.getFullYear().toString().padStart(2,'0'));
+        setMonth(MONTHS[props.date.get.getMonth()].padStart(2,'0'));
+        setDay(props.date.get.getDate().toString().padStart(2,'0'));
+        setHour(props.date.get.getHours().toString().padStart(2,'0'));
+        setMinute(props.date.get.getMinutes().toString().padStart(2,'0'));
+        setSecond(props.date.get.getSeconds().toString().padStart(2,'0'));
+    }, [props.date.get]);
     const filteredSetNum = function (setFunc: Dispatch<SetStateAction<string>>) {
         return (n: SetStateAction<string>) => {
             if (typeof(n) === 'string')
@@ -100,18 +121,22 @@ function DatetimeSelector(props: { date: State<Date | null>, dropdownRef: React.
             return setFunc(newF);
         };
     };
-    const setDate: Dispatch<SetStateAction<Date | null>> = props.date.set;
+    const setDate: Dispatch<SetStateAction<Date>> = props.date.set;
     useEffect(() => {
-        try { setDate(new Date(`${month} ${day} ${year} ${hour}:${minute}:${second}`)); } finally {;}
+        try { setDate(prev => prev !== null ? new Date(`${month} ${day} ${year} ${hour}:${minute}:${second}`) : prev); } finally {;}
     }, [year, month, day, hour, minute, second, setDate]);
+    const emptyEventHandler = () => {};
+    const dropDowns = [useRef<ClickHander>(emptyEventHandler), useRef<ClickHander>(emptyEventHandler), useRef<ClickHander>(emptyEventHandler), 
+        useRef<ClickHander>(emptyEventHandler), useRef<ClickHander>(emptyEventHandler), useRef<ClickHander>(emptyEventHandler)];
+    props.closeHandler.current = (event) => dropDowns.forEach(d => d.current(event));
     return <div className='date-selector-container'>
-        <div className='w-[17%] text-center'><DropDownList list={[2025, 2024, 2023]} val={{get: year, set: filteredSetNum(setYear)}} dropdownRef={props.dropdownRef} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
-        <b className=' mx-1'>-</b><div className='w-[15%] text-center'><DropDownList list={MONTHS} val={{get: month, set: setMonth}} dropdownRef={props.dropdownRef} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
-        <b className=' mx-1'>-</b><div className='w-[13%] text-center'><DropDownList list={[...Array(31).keys()].map(i=>i+1).map(i=>i.toString().padStart(2,'0'))} val={{get: day, set: filteredSetNum(setDay)}} dropdownRef={props.dropdownRef} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+        <div className='w-[17%] text-center'><DropDownList list={YEARS} val={{get: year, set: filteredSetNum(setYear)}} closeHandler={dropDowns[0]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+        <b className=' mx-1'>-</b><div className='w-[15%] text-center'><DropDownList list={MONTHS} val={{get: month, set: setMonth}} closeHandler={dropDowns[1]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+        <b className=' mx-1'>-</b><div className='w-[13%] text-center'><DropDownList list={[...Array(31).keys()].map(i=>i+1).map(i=>i.toString().padStart(2,'0'))} val={{get: day, set: filteredSetNum(setDay)}} closeHandler={dropDowns[2]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
         <div className='mx-auto'></div>
-        <div className='w-[13%] text-center'><DropDownList list={[...Array(24).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: hour, set: filteredSetNum(setHour)}} dropdownRef={props.dropdownRef} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
-        <b className=' mx-1'>:</b><div className='w-[13%] text-center'><DropDownList list={[...Array(60).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: minute, set: filteredSetNum(setMinute)}} dropdownRef={props.dropdownRef} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
-        <b className=' mx-1'>:</b><div className='w-[13%] text-center'><DropDownList list={[...Array(60).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: second, set: filteredSetNum(setSecond)}} dropdownRef={props.dropdownRef} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+        <div className='w-[13%] text-center'><DropDownList list={[...Array(24).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: hour, set: filteredSetNum(setHour)}} closeHandler={dropDowns[3]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+        <b className=' mx-1'>:</b><div className='w-[13%] text-center'><DropDownList list={[...Array(60).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: minute, set: filteredSetNum(setMinute)}} closeHandler={dropDowns[4]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+        <b className=' mx-1'>:</b><div className='w-[13%] text-center'><DropDownList list={[...Array(60).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: second, set: filteredSetNum(setSecond)}} closeHandler={dropDowns[5]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
     </div>;
 }
 
@@ -127,8 +152,6 @@ function formatMoney(amount: string): string {
 }
 
 
-
-
 function DetailModal(
     props: {
         transaction: State<Transaction | null>, 
@@ -138,13 +161,17 @@ function DetailModal(
         paymentMethods: State<string[]>,
     }
 ) {
-
     const modalContentRef = useRef<HTMLDivElement>(null);
-    const dropdownRef = useRef<HTMLDivElement[]>([]);
     const amountRef = useRef<HTMLInputElement>(null);
-    const [date, setDate] = useState<Date | null>(null);
+    const [date, setDate] = useState<Date>(props.transaction.get?.time ?? new Date());
+    useEffect(()=>{
+        setDate(props.transaction.get?.time ?? new Date());
+    }, [props.transaction.get?.time, setDate]);
     const [amount, setAmount] = useState<string>(formatMoney(props.transaction.get?.amount ?? "0"));
     const [editMode, setEditMode] = useState(false);
+    useEffect(() => {
+        if (props.transaction.get === null) setEditMode(false);
+    }, [props.transaction.get]);
     useEffect(() => { setAmount(formatMoney(props.transaction.get?.amount ?? "0")) }, [props.transaction]);
     const transactionSheet = useMemo(
         () => props.spreadsheet.get.sheets.filter(sheet => sheet.name === TRANSACTION_SHEET_NAME)[0] ?? {name: TRANSACTION_SHEET_NAME, columns: [], values: []}, 
@@ -161,42 +188,12 @@ function DetailModal(
         setpaymentMethod(props.transaction.get?.paymentMethod ?? props.paymentMethods.get[0] ?? "");
     }, [props.transaction.get?.paymentMethod, props.paymentMethods.get]);
 
-    function closeWhenClickOutside(e: React.MouseEvent) {
-        if (modalContentRef.current && !modalContentRef.current.contains(e.target as Node))
-            props.transaction.set(null);   // clicked outside of contentRef.current, close modal
-    }
-    function closeDropdownClickOutside(refs: React.RefObject<HTMLDivElement[]>) {
-        return (e: React.MouseEvent) => {
-            refs.current.forEach((ele: HTMLDivElement) => {
-                if (!ele.contains(e.target as Node))
-                    ele.classList.add('hidden');
-            });
-        };
-    }
-    
     
     function restrictMoneyInput(amount: string): string {
         const arr = amount.replace(/[^0-9.-]/g, '').split('.');
         const [i, f] = [arr[0], arr[1] ?? ''];
         const n = BigInt(i);
         return n + '.' + f.substring(0, Math.min(2, f.length)).padStart(2, '0');
-    }
-    function formatMoneyClickOutside(e: React.MouseEvent) {
-        if (amountRef.current && !(amountRef.current as Node).contains(e.target as Node)) {
-            props.transaction.set((prev: Transaction | null) => {
-                if (prev === null) return null;
-                const newTran = cloneTransaction(prev);
-                try {
-                    newTran.amount = restrictMoneyInput((amountRef.current as HTMLInputElement).value);
-                } catch {
-                    return prev;
-                }
-                return newTran;
-            });
-        }
-    }
-    function chainMouseEventFuncCals(funcs: ((e: React.MouseEvent) => void)[]) {
-        return (e: React.MouseEvent) => { funcs.forEach(f => f(e)); };
     }
     
     const setCategoryHandler = (c: string | ((prev:string)=>string)) => {
@@ -219,7 +216,6 @@ function DetailModal(
             return a;
         });
     };
-
     const setPaymentMethodHandler = (c: string | ((prev:string)=>string)) => {
         let newPaymentMethod = '';
         if (typeof c === 'string') {
@@ -240,53 +236,14 @@ function DetailModal(
             return a;
         });
     };
-
-
-    const setAmountHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setAmount((prev: string) => {
-            try {
-                const newAmount = e.target.value.replace(/[^0-9.-]/g, '').replace('$', '');
-                return newAmount
-            } catch {
-                return prev;
-            }
-        });
-    };
-    const setMerchantHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const setTransactionFieldHandler = (fieldName: TransactionStringField) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         props.transaction.set((prev: Transaction | null) => {
             const newTran = cloneTransaction(prev);
-            newTran.merchant = e.target.value;
+            newTran[fieldName] = e.target.value;
             return newTran;
         });
     };
-    // const setPaymentMethodHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
-    //     props.transaction.set((prev: Transaction | null) => {
-    //         const newTran = cloneTransaction(prev);
-    //         newTran.paymentMethod = e.target.value;
-    //         return newTran;
-    //     });
-    // };
-    const setLocationHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
-        props.transaction.set((prev: Transaction | null) => {
-            const newTran = cloneTransaction(prev);
-            newTran.location = e.target.value;
-            return newTran;
-        });
-    };
-    const setPositionHandler = (e: React.ChangeEvent< HTMLInputElement>) => {
-        props.transaction.set((prev: Transaction | null) => {
-            const newTran = cloneTransaction(prev);
-            newTran.position = e.target.value;
-            return newTran;
-        });
-    };
-    const setDescriptionHandler = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        props.transaction.set((prev: Transaction | null) => {
-            const newTran = cloneTransaction(prev);
-            newTran.description = e.target.value;
-            return newTran;
-        });
-    };
+    
     function saveTransactionDetail(v: Transaction | null) {
         if (v === null) return null;
         const position = v.position.split(',');
@@ -329,7 +286,18 @@ function DetailModal(
         deleteRow(props.accessToken, props.spreadsheet.get.id, transactionSheet.id, (v.row ?? 0) + 1).then(data => console.log('deleteRow', data));
         return v;
     }
-    return <div className='modal' {...(props.transaction.get !== null && {open: props.transaction.get !== null})} onClick={chainMouseEventFuncCals([formatMoneyClickOutside, closeWhenClickOutside, closeDropdownClickOutside(dropdownRef)])}>
+    const emptyEventHandler = () => {};
+    const dropDown0 = useRef<ClickHander>(emptyEventHandler);
+    const dropDown1 = useRef<ClickHander>(emptyEventHandler);
+    const dropDown2 = useRef<ClickHander>(emptyEventHandler);
+    const clickOutsideHandler = (event: React.MouseEvent<Node>) => {
+        if (modalContentRef.current && !modalContentRef.current.contains(event.target as Node)) 
+            return props.transaction.set(null);
+        dropDown0.current(event);
+        dropDown1.current(event);
+        dropDown2.current(event);
+    };
+    return <div className='modal' {...(props.transaction.get !== null && {open: props.transaction.get !== null})} onClick={clickOutsideHandler}>
         <div className='modal-content' ref={modalContentRef}>
             <div className='flex flex-row justify-between items-center'>
                 <h1>Details</h1>
@@ -337,26 +305,25 @@ function DetailModal(
             </div>
             <div className='grid grid-cols-4 items-center gap-y-1'>
                 <strong>Datetime</strong>
-                <div className='col-span-3'><DatetimeSelector date={{get: date, set: setDate}} dropdownRef={dropdownRef} noInput={!editMode} allowChoose={editMode} /></div>
+                <div className='col-span-3'><DatetimeSelector date={{get: date, set: setDate}} closeHandler={dropDown0} noInput={!editMode} allowChoose={editMode} /></div>
                 <strong>Amount</strong>
-                <div className='col-span-3'><input readOnly={!editMode} value={amount} onChange={setAmountHandler} ref={amountRef} /></div>
+                <div className='col-span-3'><input readOnly={!editMode} value={amount} onChange={setTransactionFieldHandler('amount')} ref={amountRef} /></div>
                 <strong>Category</strong>
                 <div className='col-span-3'>
-                    <DropDownList allowChoose={editMode} noInput={!editMode} val={{get:category,set:setCategoryHandler}} dropdownRef={dropdownRef} list={props.categories.get} />
+                    <DropDownList allowChoose={editMode} noInput={!editMode} val={{get:category,set:setCategoryHandler}} closeHandler={dropDown1} list={props.categories.get} />
                 </div>
                 <strong>Merchant</strong>
-                <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.merchant ?? ''} onChange={setMerchantHandler} /></div>
+                <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.merchant ?? ''} onChange={setTransactionFieldHandler('merchant')} /></div>
                 <strong>Payment Method</strong>
-                {/* <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.paymentMethod ?? ''} onChange={setPaymentMethodHandler} /></div> */}
                 <div className='col-span-3'>
-                    <DropDownList allowChoose={editMode} noInput={!editMode} val={{get:paymentMethod,set:setPaymentMethodHandler}} dropdownRef={dropdownRef} list={props.paymentMethods.get} />
+                    <DropDownList allowChoose={editMode} noInput={!editMode} val={{get:paymentMethod,set:setPaymentMethodHandler}} closeHandler={dropDown2} list={props.paymentMethods.get} />
                 </div>
                 <strong>Location</strong>
-                <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.location ?? ''} onChange={setLocationHandler} /></div>
+                <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.location ?? ''} onChange={setTransactionFieldHandler('location')} /></div>
                 <strong>Position</strong>
-                <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.position ?? ''} onChange={setPositionHandler} /></div>
+                <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.position ?? ''} onChange={setTransactionFieldHandler('position')} /></div>
                 <strong className='col-span-4'>Description</strong>
-                <div className='col-span-4 **self-start**'><textarea readOnly={!editMode} value={props.transaction.get?.description ?? ''} onChange={setDescriptionHandler} className='h-60 resize-none'/></div>
+                <div className='col-span-4 **self-start**'><textarea readOnly={!editMode} value={props.transaction.get?.description ?? ''} onChange={setTransactionFieldHandler('description')} className='h-60 resize-none'/></div>
             </div>
             <div className='left-0 bottom-0 absolute w-full p-6 flex justify-between'>
             <div className='flex justify-start'>

@@ -92,7 +92,7 @@
         @apply relative w-full;
     }
     .dropdown-list {
-        @apply h-50 overflow-auto z-10 w-full absolute bg-amber-50;
+        @apply overflow-auto z-10 w-full absolute bg-amber-50 transition-all duration-300 ease-in-out;
     }
     .dropdown-list-item {
         @apply p-1 hover:bg-amber-100 w-full;
