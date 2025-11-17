@@ -9,16 +9,13 @@ const jwt = require('jsonwebtoken');
 
 const config = require(path.join(__dirname, '..', 'boommywallet-config.json'));
 const secret = require('./secrets');
-
-console.log('process.env', process.env);
+const {addRow} = require('./googleapis');
 
 const app = express();
 app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
 app.use(express.static(path.join(__dirname, '..', 'Client', 'static')));
 app.use(bodyParser.json());
 app.use(cookieParser());
-
-const appengineClient = new ApplicationsClient();
 
 let HOST = {
     PROTOCOL: 'http',
@@ -27,6 +24,9 @@ let HOST = {
     ADDRESS: `localhost:${process.env.PORT ?? 5000}`
 };
 
+
+
+const appengineClient = new ApplicationsClient();
 async function getHostname() {
     
     if (process.env.NODE_ENV !== 'production') {    // https://docs.cloud.google.com/appengine/docs/standard/nodejs/runtime
@@ -48,9 +48,48 @@ async function getHostname() {
 }
 
 
+/**
+ * revokes access_token or refresh_token
+ * @see https://developers.google.com/identity/protocols/oauth2/web-server#tokenrevoke
+ * @param {string} token 
+ * @returns {boolean} true on success
+ */
+async function revokeToken(token) {
+    return await fetch ('https://oauth2.googleapis.com/revoke?' + new URLSearchParams({token: token}).toString(), {
+        method: 'POST',
+        headers: {
+            'Content-type': 'application/x-www-form-urlencoded',
+        },
+    })
+    .then(res => res.ok);
+}
+
+/**
+ * https://developers.google.com/identity/protocols/oauth2/web-server#offline
+ * @param {string} refreshToken 
+ * @returns 
+ */
+async function getNewAccessToken(refreshToken) {
+    return await fetch ('https://oauth2.googleapis.com/token?' + new URLSearchParams({token: refreshToken}).toString(), {
+        method: 'POST',
+        headers: {
+            'Content-type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            client_id: (await secret.get('secrets')).google_oauth.web.client_id,
+            client_secret: (await secret.get('secrets')).google_oauth.web.client_secret,
+            refresh_token: refreshToken,
+            grant_type: 'refresh_token',
+        }).toString(),
+    })
+    .then(res => res.json());
+}
+
+
 app.get('/', (_req, res) => {
     res.redirect('/index.html');
 });
+
 
 const gauthHmacKey = [];
 crypto.generateKey('hmac', {length: 512}, (err, key) => { if (err) throw err; gauthHmacKey.push(key); })
@@ -68,11 +107,11 @@ setInterval(
     600000   // every 10 minutes
 );     
 
-const GOOGLE_OAUTH_REDIRECT_PATH = '/oauth/google/callback';
+
+const GOOGLE_OAUTH_REDIRECT_PATH = config.google_oauth.redirect_url;
 app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
-    if (req.query.error) {
+    if (req.query.error)
         res.redirect(307, '/login?' + (new URLSearchParams(req.query)).toString());
-    }
     const reqState = req.query.state;
     const statePayload = gauthHmacKey.reduceRight((acc, key) => {
         try {
@@ -82,7 +121,7 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
         }
     }, null);
     if (statePayload === null || statePayload.ip !== req.ip || statePayload.ua !== req.headers['user-agent']) {
-        console.log(GOOGLE_OAUTH_REDIRECT_PATH, statePayload);
+        console.warn('bad state payload for oauth', GOOGLE_OAUTH_REDIRECT_PATH, statePayload);
         return res.sendStatus(401);
     }
     const body = new URLSearchParams({
@@ -97,12 +136,41 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body.toString()
     }).then(res => res.json());
-    const cookiesOption = {
-        maxAge: 1000 * (response.expires_in - 10), 
-        httpOnly: true,
-        sameSite: 'strict',
-        secure: true
+    const email = jwt.decode(response?.id_token ?? "").email;
+    if (!email) {
+        console.log('bad response (missing email in payload of response.id_token):', response);
+        return res.sendStatus(401);
+    }
+    if (!response.refresh_token) {
+        console.log('bad response (missing refresh_token in response):', response);
+        return res.sendStatus(401);
+    }
+    
+    // store refresh_token in db
+    const docRef = database.collection('users').doc(email);
+    const now = Date.now();
+    const update = (data) => {
+        if (response.refresh_token) {
+            data.auth.refresh_token = response.refresh_token;
+            data.auth.refresh_token_t = now;
+        }
+        return data;
     };
+    docRef.get().then(async doc => {
+        let data = {        // default for new registered users
+            auth: { access_tokens: [], }, 
+            register_time: now, 
+            version: '1'
+        };
+        if (doc.exists) {
+            data = doc.data();
+            await revokeToken(data.auth.refresh_token);
+        }
+        return await docRef.set(update(data));
+    });
+
+
+    const cookiesOption = { maxAge: 1000 * (response.expires_in - 10), httpOnly: true, sameSite: 'strict', secure: true };
     res.cookie('access_token', response.access_token, cookiesOption);
     res.cookie('id_token', response.id_token, cookiesOption);
     res.redirect(307, '/index.html');
@@ -126,26 +194,47 @@ app.get('/oauth/google/login', async (req, res) => {
     const statePayload = { 
         ts: Date.now(), 
         ip: req.ip, 
-        ua: req.headers['user-agent'] 
+        ua: req.headers['user-agent'] ,
     };
-    console.log('/oauth/google/login', statePayload);
     const queryParams = new URLSearchParams({
         client_id: (await secret.get('secrets')).google_oauth.web.client_id,
-        // redirect_uri: `https://boommywallet.uk.r.appspot.com/auth`,
         redirect_uri: `${HOST.PROTOCOL}://${HOST.ADDRESS}${GOOGLE_OAUTH_REDIRECT_PATH}`,
         response_type: 'code',
         access_type: 'offline',     // also get refresh token
         scope: AUTH_SCOPES,
         prompt: 'consent',
-        state: jwt.sign(statePayload, gauthHmacKey[gauthHmacKey.length - 1], { algorithm: 'HS512', expiresIn: 9 * 60 })    // 9 mins
+        state: jwt.sign(statePayload, gauthHmacKey[gauthHmacKey.length - 1], { algorithm: 'HS512', expiresIn: 9 * 60 }),    // 9 mins
     });
     const authUri = 'https://accounts.google.com/o/oauth2/v2/auth?' + queryParams.toString();
-    res.cookie("google_oauth_uri", authUri, { maxAge: 10000, secure: true, sameSite: true, path: '/login.html' }) // 10 sec (should be enough for client to pickup)
+    res.cookie("google_oauth_uri", authUri, { maxAge: 10000, secure: true, sameSite: true, path: '/login.html' }); // 10 sec (should be enough for client to pickup)
     res.header('X-Frame-Options', 'DENY');
     const redirectParams = (new URLSearchParams(req.query)).toString();
     res.redirect(307, `/login.html${redirectParams.length > 0 ? '?' : ''}${redirectParams}`);
 });
 
+
+app.post('/api/v1/transaction', async (req, res) => {
+    const token = req.headers['authorization'];
+    const email = req.body.email;
+    const transaction = req.body.transaction;
+    if (!email || !token || !transaction) 
+        return res.sendStatus(400);
+    const doc = await database.collection('users').doc(email).get();
+    if (!doc.exists)
+        return res.sendStatus(403);
+    const data = doc.data();
+    if (!data.auth.access_tokens.find(at => at.token === token))
+        return res.sendStatus(403);
+    const response = await getNewAccessToken(data.auth.refresh_token);
+    if (!response.access_token)
+        return res.sendStatus(401);
+    // TODO: logic for appending row to excel sheet
+    const row = [transaction.time, transaction.amount.replace(/[^0-9.]/g, ''), transaction.category, transaction.name, transaction.merchant, transaction.paymentMethod, transaction.location, transaction.latitude, transaction.longitude, transaction.description];
+    const addRowRes = await addRow(response.access_token, req.body.spreadsheetId, 'transactions', row);
+    if (addRowRes.error)
+        return res.sendStatus(500);
+    return res.sendStatus(200);
+});
 
 secret.init()
 .then(getHostname)
