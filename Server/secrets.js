@@ -32,9 +32,9 @@ async function get(secretName) {
         return val;
     }
     const [accessResponse] = await client.accessSecretVersion({
-        name: `projects/${config.gcp.projectName}/secrets/${secretName}/versions/latest`,
+        name: `projects/${config.gcp.projectId}/secrets/${secretName}/versions/latest`,
     });
-    const val = accessResponse.payload.data.toString('utf8');
+    const val = JSON.parse(accessResponse.payload.data.toString('utf8'));
     cache.set(secretName, val);
     return val;
 }
