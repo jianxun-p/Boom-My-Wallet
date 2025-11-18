@@ -24,12 +24,13 @@ let HOST = {
     ADDRESS: `localhost:${process.env.PORT ?? 5000}`
 };
 
+const PRDOUCTION = process.env.NODE_ENV === 'production';
 
 
 const appengineClient = new ApplicationsClient();
 async function getHostname() {
     
-    if (process.env.NODE_ENV !== 'production') {    // https://docs.cloud.google.com/appengine/docs/standard/nodejs/runtime
+    if (!PRDOUCTION) {    // https://docs.cloud.google.com/appengine/docs/standard/nodejs/runtime
         console.log('Host:', HOST);
         return;
     }
@@ -188,8 +189,7 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
         return await docRef.set(update(data));
     });
 
-
-    const cookiesOption = { maxAge: 1000 * (response.expires_in - 10), httpOnly: true, sameSite: 'strict', secure: true };
+    const cookiesOption = { maxAge: 1000 * (response.expires_in - 10), httpOnly: true, sameSite: 'strict', secure: PRDOUCTION };
     res.cookie('access_token', response.access_token, cookiesOption);
     res.cookie('id_token', response.id_token, cookiesOption);
     res.redirect(307, '/index.html');
@@ -225,7 +225,7 @@ app.get('/oauth/google/login', async (req, res) => {
         state: jwt.sign(statePayload, gauthHmacKey[gauthHmacKey.length - 1], { algorithm: 'HS512', expiresIn: 9 * 60 }),    // 9 mins
     });
     const authUri = 'https://accounts.google.com/o/oauth2/v2/auth?' + queryParams.toString();
-    res.cookie("google_oauth_uri", authUri, { maxAge: 10000, secure: true, sameSite: true, path: '/login.html' }); // 10 sec (should be enough for client to pickup)
+    res.cookie("google_oauth_uri", authUri, { maxAge: 10000, secure: PRDOUCTION, sameSite: true, path: '/login.html' }); // 10 sec (should be enough for client to pickup)
     res.header('X-Frame-Options', 'DENY');
     const redirectParams = (new URLSearchParams(req.query)).toString();
     res.redirect(307, `/login.html${redirectParams.length > 0 ? '?' : ''}${redirectParams}`);
