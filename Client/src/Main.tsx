@@ -20,12 +20,12 @@ export function MenuBarItem({ logo, text, onClick }: {logo: string | ReactNode, 
 export function MenuBar({setPage}: {setPage: Dispatch<SetStateAction<string>>}) {
     return (
         <div className='menu-bar'>
-            <div id='menubar-top-div' className='mb-auto top-0'>
+            <div className='menu-bar-section-1'>
                 <MenuBarItem logo="🏠" text="Home" onClick={() => setPage('Home')} />
                 <MenuBarItem logo="📃" text="Transactions" onClick={() => setPage('Transactions')} />
                 <MenuBarItem logo="📅" text="Plan" onClick={() => setPage('Plan')} />
             </div>
-            <div id='menubar-bottom-div' className='mt-auto bottom-0'>
+            <div className='menu-bar-section-2'>
                 <MenuBarItem logo="⚙️" text="Settings" onClick={() => setPage('Settings')} />
             </div>
         </div>

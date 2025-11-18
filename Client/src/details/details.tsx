@@ -129,14 +129,17 @@ function DatetimeSelector(
     const dropDowns = [useRef<ClickHander>(emptyEventHandler), useRef<ClickHander>(emptyEventHandler), useRef<ClickHander>(emptyEventHandler), 
         useRef<ClickHander>(emptyEventHandler), useRef<ClickHander>(emptyEventHandler), useRef<ClickHander>(emptyEventHandler)];
     props.closeHandler.current = (event) => dropDowns.forEach(d => d.current(event));
-    return <div className='date-selector-container'>
-        <div className='w-[17%] text-center'><DropDownList list={YEARS} val={{get: year, set: filteredSetNum(setYear)}} closeHandler={dropDowns[0]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
-        <b className=' mx-1'>-</b><div className='w-[15%] text-center'><DropDownList list={MONTHS} val={{get: month, set: setMonth}} closeHandler={dropDowns[1]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
-        <b className=' mx-1'>-</b><div className='w-[13%] text-center'><DropDownList list={[...Array(31).keys()].map(i=>i+1).map(i=>i.toString().padStart(2,'0'))} val={{get: day, set: filteredSetNum(setDay)}} closeHandler={dropDowns[2]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
-        <div className='mx-auto'></div>
-        <div className='w-[13%] text-center'><DropDownList list={[...Array(24).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: hour, set: filteredSetNum(setHour)}} closeHandler={dropDowns[3]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
-        <b className=' mx-1'>:</b><div className='w-[13%] text-center'><DropDownList list={[...Array(60).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: minute, set: filteredSetNum(setMinute)}} closeHandler={dropDowns[4]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
-        <b className=' mx-1'>:</b><div className='w-[13%] text-center'><DropDownList list={[...Array(60).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: second, set: filteredSetNum(setSecond)}} closeHandler={dropDowns[5]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+    return <div className='datetime-selector-container'>
+        <div className='date-selector-container'>
+            <div className='w-[40%] min-w-[54px] text-center'><DropDownList list={YEARS} val={{get: year, set: filteredSetNum(setYear)}} closeHandler={dropDowns[0]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+            <b className='mx-1'>-</b><div className='w-[30%] min-w-[50px] text-center'><DropDownList list={MONTHS} val={{get: month, set: setMonth}} closeHandler={dropDowns[1]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+            <b className='mx-1'>-</b><div className='w-[20%] min-w-10 text-center'><DropDownList list={[...Array(31).keys()].map(i=>i+1).map(i=>i.toString().padStart(2,'0'))} val={{get: day, set: filteredSetNum(setDay)}} closeHandler={dropDowns[2]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+        </div>
+        <div className='time-selector-container'>
+            <div className='w-[30%] min-w-10 text-center'><DropDownList list={[...Array(24).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: hour, set: filteredSetNum(setHour)}} closeHandler={dropDowns[3]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+            <b className='mx-1'>:</b><div className='w-[30%] min-w-10 text-center'><DropDownList list={[...Array(60).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: minute, set: filteredSetNum(setMinute)}} closeHandler={dropDowns[4]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+            <b className='mx-1'>:</b><div className='w-[30%] min-w-10 text-center'><DropDownList list={[...Array(60).keys()].map(i=>i.toString().padStart(2,'0'))} val={{get: second, set: filteredSetNum(setSecond)}} closeHandler={dropDowns[5]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+        </div>
     </div>;
 }
 
@@ -303,36 +306,36 @@ function DetailModal(
                 <h1>Details</h1>
                 <button className='bg-blue-200 hover:bg-blue-300 w-auto' onClick={() => setEditMode(prev=>!prev)}>{editMode ? 'Done' : 'Edit'}</button>
             </div>
-            <div className='grid grid-cols-4 items-center gap-y-1'>
-                <strong>Datetime</strong>
-                <div className='col-span-3'><DatetimeSelector date={{get: date, set: setDate}} closeHandler={dropDown0} noInput={!editMode} allowChoose={editMode} /></div>
-                <strong>Amount</strong>
-                <div className='col-span-3'><input readOnly={!editMode} value={amount} onChange={setTransactionFieldHandler('amount')} ref={amountRef} /></div>
-                <strong>Category</strong>
-                <div className='col-span-3'>
+            <div className='modal-items'>
+                <strong className='modal-item-label'>Datetime</strong>
+                <div className='modal-item-value'><DatetimeSelector date={{get: date, set: setDate}} closeHandler={dropDown0} noInput={!editMode} allowChoose={editMode} /></div>
+                <strong className='modal-item-label'>Amount</strong>
+                <div className='modal-item-value'><input readOnly={!editMode} value={amount} onChange={setTransactionFieldHandler('amount')} ref={amountRef} /></div>
+                <strong className='modal-item-label'>Category</strong>
+                <div className='modal-item-value'>
                     <DropDownList allowChoose={editMode} noInput={!editMode} val={{get:category,set:setCategoryHandler}} closeHandler={dropDown1} list={props.categories.get} />
                 </div>
-                <strong>Merchant</strong>
-                <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.merchant ?? ''} onChange={setTransactionFieldHandler('merchant')} /></div>
-                <strong>Payment Method</strong>
-                <div className='col-span-3'>
+                <strong className='modal-item-label'>Merchant</strong>
+                <div className='modal-item-value'><input readOnly={!editMode} value={props.transaction.get?.merchant ?? ''} onChange={setTransactionFieldHandler('merchant')} /></div>
+                <strong className='modal-item-label'>Payment Method</strong>
+                <div className='modal-item-value'>
                     <DropDownList allowChoose={editMode} noInput={!editMode} val={{get:paymentMethod,set:setPaymentMethodHandler}} closeHandler={dropDown2} list={props.paymentMethods.get} />
                 </div>
-                <strong>Location</strong>
-                <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.location ?? ''} onChange={setTransactionFieldHandler('location')} /></div>
-                <strong>Position</strong>
-                <div className='col-span-3'><input readOnly={!editMode} value={props.transaction.get?.position ?? ''} onChange={setTransactionFieldHandler('position')} /></div>
-                <strong className='col-span-4'>Description</strong>
-                <div className='col-span-4 **self-start**'><textarea readOnly={!editMode} value={props.transaction.get?.description ?? ''} onChange={setTransactionFieldHandler('description')} className='h-60 resize-none'/></div>
+                <strong className='modal-item-label'>Location</strong>
+                <div className='modal-item-value'><input readOnly={!editMode} value={props.transaction.get?.location ?? ''} onChange={setTransactionFieldHandler('location')} /></div>
+                <strong className='modal-item-label'>Position</strong>
+                <div className='modal-item-value'><input readOnly={!editMode} value={props.transaction.get?.position ?? ''} onChange={setTransactionFieldHandler('position')} /></div>
+                <strong className='col-span-full'>Description</strong>
+                <div className='col-span-full **self-start**'><textarea readOnly={!editMode} value={props.transaction.get?.description ?? ''} onChange={setTransactionFieldHandler('description')} className='h-auto resize-y'/></div>
             </div>
-            <div className='left-0 bottom-0 absolute w-full p-6 flex justify-between'>
-            <div className='flex justify-start'>
-                <button onClick={()=>{deleteTransaction(props.transaction.get);props.transaction.set(null);}} className='w-auto mx-2 bg-red-400 hover:bg-red-500'>Delete</button>
-            </div>
-            <div className='flex justify-end'>
-                <button onClick={()=>{saveTransactionDetail(props.transaction.get);props.transaction.set(null);}} className='w-auto mx-2 bg-green-300 hover:bg-green-400'>Save</button>
-                <button onClick={()=>props.transaction.set(null)} className='w-auto mx-2 bg-green-100 hover:bg-green-200'>Cancel</button>
-            </div>
+            <div className='left-0 bottom-0 w-full pt-2 px-4 flex justify-between'>
+                <div className='flex justify-start'>
+                    <button onClick={()=>{deleteTransaction(props.transaction.get);props.transaction.set(null);}} className='w-auto mx-2 error-colour'>Delete</button>
+                </div>
+                <div className='flex justify-end'>
+                    <button onClick={()=>{saveTransactionDetail(props.transaction.get);props.transaction.set(null);}} className='w-auto mx-2 ok-colour'>Save</button>
+                    <button onClick={()=>props.transaction.set(null)} className='w-auto mx-2 info-colour'>Cancel</button>
+                </div>
             </div>
         </div>
     </div>;

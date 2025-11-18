@@ -1,21 +1,44 @@
 @import "tailwindcss";
 
 @layer components {
+    @media (max-width: 768px) { /* mobile */
+        .transaction-wrapper {
+            --width: calc(100%);
+        }
+    }
+    @media (min-width: 769px) {
+        .transaction-wrapper {
+            --width: calc(min(85%, 900px));
+        }
+    }
     .transaction-wrapper {
-        --width: calc(min(80%, 900px));
-        @apply
-        absolute 
-        m-auto w-(--width) left-[calc(50vw-0.5*var(--width))];
+        @apply absolute m-auto w-(--width) left-[calc(50%-0.5*var(--width))];
     }
     .add-transaction-btn {
         @apply rounded-2xl shadow-xl bg-amber-300
         hover:scale-[105%] hover:bg-amber-400 hover:cursor-pointer
         text-center p-2 mx-8
-        fixed bottom-0 right-0 m-4 z-50;
+        fixed right-0 m-4 z-50;
+    }
+    @media (max-width: 768px) { /* mobile */
+        section {
+            --section-margin: calc(var(--spacing) * 2);
+        }
+        .add-transaction-btn {
+            @apply bottom-(--menubar-height);
+        }
+    }
+    @media (min-width: 769px) {
+        section {
+            --section-margin: calc(var(--spacing) * 8);
+        }
+        .add-transaction-btn {
+            @apply bottom-0;
+        }
     }
     section {
-        @apply rounded-2xl border-solid shadow-xl border-amber-300 border-2 bg-amber-300
-        p-2 m-8;
+        @apply rounded-2xl shadow-xl bg-amber-300 dark:bg-[#808000]
+        p-2 m-(--section-margin);
     }
     h1{
         @apply
@@ -43,7 +66,7 @@
         @apply 
         w-full p-2
         grid grid-cols-5 grid-rows-1 items-center
-        rounded-xl shadow-2xs bg-amber-50
+        rounded-xl shadow-2xs bg-amber-50 text-[#626900] dark:bg-[#e0e00080] dark:text-[#222200]
         duration-150
         hover:scale-[102%] hover:cursor-pointer hover:bg-amber-100;
     }
@@ -62,18 +85,41 @@
 }
 
 @layer components {
-
+    @media (max-width: 768px) {     /* mobile */
+        .modal {
+            --modal-width: 100%;
+            --modal-height: 100%;
+            @apply left-0 bottom-(--menubar-height);
+        }
+    }
+    @media (min-width: 769px) {
+        .modal {
+            --modal-width: 100%;
+            --modal-height: 100%;
+            @apply left-(--menubar-width) bottom-0;
+        }
+    }
     .modal {
-        --modal-width: calc(100vw - var(--menubar-width));
         @apply open:backdrop-blur-xs open:bg-[#00000050] open:opacity-100 transition-opacity not-open:opacity-0 not-open:invisible open:visible
-        fixed top-0 bottom-0 left-(--menubar-width) right-0 z-100 duration-300;
+        fixed top-0 right-0 z-100 duration-300;
     }
     .modal-content {
-        --width: calc(min(var(--modal-width), 600px));
-        --height: calc(min(100vh, 800px));
-        @apply bg-[#f3ffac] absolute overflow-auto
+        --modal-content-width: calc(min(var(--modal-width), 600px));
+        --modal-content-height: calc(min(var(--modal-height), 800px));
+        @apply dark:bg-[#404030] bg-[#f3ffac] absolute 
+        overflow-y-auto
         rounded-2xl p-8
-        m-auto w-(--width) h-(--height) left-[calc(0.5*var(--modal-width)-0.5*var(--width))] top-[calc(50vh-0.5*var(--height))];
+        m-auto w-(--modal-content-width) h-(--modal-content-height) left-[calc(0.5*var(--modal-width)-0.5*var(--modal-content-width))] top-[calc(0.5*var(--modal-height)-0.5*var(--modal-content-height))];
+    }
+    .modal-items {
+        @apply grid items-center gap-y-1 
+        not-sm:grid-cols-1 sm:grid-cols-4;
+    }
+    .modal-item-label {
+        @apply col-span-1;
+    }
+    .modal-item-value {
+        @apply not-sm:col-span-1 sm:col-span-3;
     }
 }
 
@@ -100,9 +146,15 @@
 }
 
 @layer components {
-
-    .date-selector-container {
-        @apply relative flex flex-row justify-between items-center;
+    .datetime-selector-container {
+        /* Default (Mobile): Stack vertically, full width, centered */
+        @apply flex flex-col items-center justify-center space-y-4 
+               sm:flex-row sm:space-y-0 sm:space-x-4; /* Tablet/Desktop: Row layout */
+    }
+    .datetime-selector-container .date-selector-container,
+    .datetime-selector-container .time-selector-container {
+        /* Both children take full width on mobile, split half on tablet+ */
+        @apply w-full sm:w-1/2 flex items-center justify-between;
     }
 }
 
