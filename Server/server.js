@@ -107,6 +107,21 @@ setInterval(
     600000   // every 10 minutes
 );     
 
+function aesEncrypt(plaintext, key) {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    let cipherText = cipher.update(plaintext, 'utf8', 'hex');
+    cipherText += cipher.final('hex');
+    return { iv: iv.toString('hex'), cipherText: cipherText, authTag: cipher.getAuthTag().toString('hex') };
+}
+
+function aesDecrypt(cipherText, key, iv, authTag) {
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(authTag);
+    let plaintext = decipher.update(cipherText, 'hex', 'utf8');
+    plaintext += decipher.final('utf8');
+    return plaintext;
+}
 
 const GOOGLE_OAUTH_REDIRECT_PATH = config.google_oauth.redirect_url;
 app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
@@ -149,9 +164,13 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
     // store refresh_token in db
     const docRef = database.collection('users').doc(email);
     const now = Date.now();
+    const refreshTokenEncKey = (await secret.get('secrets')).refresh_token_encryption_key;
     const update = (data) => {
         if (response.refresh_token) {
-            data.auth.refresh_token = response.refresh_token;
+            const {iv, cipherText, authTag} = aesEncrypt(response.refresh_token, Buffer.from(refreshTokenEncKey, 'hex'));
+            data.auth.refresh_token = cipherText;
+            data.auth.refresh_token_iv = iv;
+            data.auth.refresh_token_auth_tag = authTag;
             data.auth.refresh_token_t = now;
         }
         return data;
@@ -225,11 +244,30 @@ app.post('/api/v1/transaction', async (req, res) => {
     const data = doc.data();
     if (!data.auth.access_tokens.find(at => at.token === token))
         return res.sendStatus(403);
-    const response = await getNewAccessToken(data.auth.refresh_token);
+    if (!data.auth.refresh_token || !data.auth.refresh_token_iv)
+        return res.sendStatus(403);
+    const refreshTokenEncKey = (await secret.get('secrets')).refresh_token_encryption_key;
+    const refreshToken = aesDecrypt(
+        data.auth.refresh_token, 
+        Buffer.from(refreshTokenEncKey, 'hex'), 
+        Buffer.from(data.auth.refresh_token_iv, 'hex'),
+        Buffer.from(data.auth.refresh_token_auth_tag, 'hex')
+    );
+    const response = await getNewAccessToken(refreshToken);
     if (!response.access_token)
         return res.sendStatus(401);
-    // TODO: logic for appending row to excel sheet
-    const row = [transaction.time, transaction.amount.replace(/[^0-9.]/g, ''), transaction.category, transaction.name, transaction.merchant, transaction.paymentMethod, transaction.location, transaction.latitude, transaction.longitude, transaction.description];
+    const row = [
+        (transaction.time ? new Date(transaction.time) : new Date()).toString(), 
+        transaction.amount.replace(/[^0-9.-]/g, ''), 
+        transaction.category, 
+        transaction.name, 
+        transaction.merchant, 
+        transaction.paymentMethod, 
+        transaction.location, 
+        transaction.latitude, 
+        transaction.longitude, 
+        transaction.description
+    ];
     const addRowRes = await addRow(response.access_token, req.body.spreadsheetId, 'transactions', row);
     if (addRowRes.error)
         return res.sendStatus(500);
