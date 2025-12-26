@@ -1,4 +1,5 @@
 const express = require('express');
+const session = require('express-session');
 const crypto = require('crypto');
 const path = require('path');
 const admin = require("firebase-admin");
@@ -11,12 +12,6 @@ const config = require(path.join(__dirname, '..', 'boommywallet-config.json'));
 const secret = require('./secrets');
 const {addRow} = require('./googleapis');
 
-const app = express();
-app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
-app.use(express.static(path.join(__dirname, '..', 'Client', 'static')));
-app.use(bodyParser.json());
-app.use(cookieParser());
-
 let HOST = {
     PROTOCOL: 'http',
     HOSTNAME: 'localhost',
@@ -25,6 +20,20 @@ let HOST = {
 };
 
 const PRDOUCTION = process.env.NODE_ENV === 'production';
+
+const app = express();
+app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
+app.use(express.static(path.join(__dirname, '..', 'Client', 'static')));
+app.use(bodyParser.json());
+app.use(cookieParser());
+app.use(session({
+    secret: crypto.generateKeySync('hmac', {length: 512}),        // A strong, random string for signing the session ID cookie
+    resave: false,              // Don't save session if unmodified
+    saveUninitialized: false,   // Don't save uninitialized sessions
+    rolling: true,              // Resets maxAge on each response
+    cookie: { secure: PRDOUCTION, maxAge: 30 * 60000, httpOnly: true, sameSite: 'strict' } // Use secure cookies in production (requires HTTPS)
+}));
+const INSECURE_KEY = crypto.generateKeySync('hmac', {length: 32});
 
 
 const appengineClient = new ApplicationsClient();
@@ -92,9 +101,10 @@ app.get('/', (_req, res) => {
 });
 
 
-const gauthHmacKey = [];
-crypto.generateKey('hmac', {length: 512}, (err, key) => { if (err) throw err; gauthHmacKey.push(key); })
-crypto.generateKey('hmac', {length: 512}, (err, key) => { if (err) throw err; gauthHmacKey.push(key); });
+const gauthHmacKey = [
+    crypto.generateKeySync('hmac', {length: 512}), 
+    crypto.generateKeySync('hmac', {length: 512})
+];
 setInterval(
     async () => { 
         crypto.generateKey('hmac', {length: 512}, (err, key) => { 
@@ -131,7 +141,7 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
     const reqState = req.query.state;
     const statePayload = gauthHmacKey.reduceRight((acc, key) => {
         try {
-            return jwt.verify(reqState, key, { algorithm: 'HS512', maxAge: 3 * 60 })
+            return jwt.verify(reqState, key, { algorithm: 'HS512', maxAge: 2 * 60 })
         } catch (e) {
             return acc;
         }
@@ -189,19 +199,19 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
         return await docRef.set(update(data));
     });
 
-    const cookiesOption = { maxAge: 1000 * (response.expires_in - 10), httpOnly: true, sameSite: 'strict', secure: PRDOUCTION };
-    res.cookie('access_token', response.access_token, cookiesOption);
-    res.cookie('id_token', response.id_token, cookiesOption);
+    req.session.accessToken = jwt.sign({accessToken: response.access_token}, INSECURE_KEY, {expiresIn: response.expires_in - 10});
+    req.session.idToken = jwt.sign({idToken: response.id_token}, INSECURE_KEY);
     res.redirect(307, '/index.html');
 });
 
 app.get('/oauth/google/access_token', (req, res) => {
-    if (req.cookies.access_token) {
-        res.json({ access_token: req.cookies.access_token });
-    } else {
+    try {
+        const payload = jwt.verify(req.session.accessToken, INSECURE_KEY);
+        return res.json({ access_token: payload.accessToken });
+    } catch (_) {
         return res.status(401).json({ error: { message: "Unauthorized" } });
     }
-})
+});
 
 const AUTH_SCOPES = [
     'openid', 
@@ -222,7 +232,7 @@ app.get('/oauth/google/login', async (req, res) => {
         access_type: 'offline',     // also get refresh token
         scope: AUTH_SCOPES,
         prompt: 'consent',
-        state: jwt.sign(statePayload, gauthHmacKey[gauthHmacKey.length - 1], { algorithm: 'HS512', expiresIn: 9 * 60 }),    // 9 mins
+        state: jwt.sign(statePayload, gauthHmacKey[gauthHmacKey.length - 1], { algorithm: 'HS512', expiresIn: 2 * 60 }),    // 2 mins
     });
     const authUri = 'https://accounts.google.com/o/oauth2/v2/auth?' + queryParams.toString();
     res.cookie("google_oauth_uri", authUri, { maxAge: 10000, secure: PRDOUCTION, sameSite: true, path: '/login.html' }); // 10 sec (should be enough for client to pickup)
