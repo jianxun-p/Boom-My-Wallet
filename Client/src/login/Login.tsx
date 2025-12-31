@@ -3,33 +3,9 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './login.css';
 
-
-function getCookies() {
-	return new Map<string, string>(
-		document.cookie
-		.split(/;\\s*/)
-		.map(c => {
-			const [k, v] = c.split('=');
-			return [decodeURIComponent(k), decodeURIComponent(v)];
-		})
-	);
-}
-
-
 export function Login() {
 	
 	const [errMsg, setErrMsg] = useState<string>("");
-	const [authuri, setAuthuri] = useState<string>("");
-	
-	useEffect(() => {
-		const cookies = getCookies();
-		const authUri = cookies.get('google_oauth_uri');
-		if (!authUri) {
-			window.location.href = '/oauth/google/login';
-		} else if (window.top) {
-			setAuthuri(authUri);
-		}
-	}, []);
 
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
@@ -38,9 +14,8 @@ export function Login() {
 	
 	const googleOauthSignIn = () => {
 		if (window.top) 
-			window.top.location.href = authuri;
+			window.top.location.href = '/oauth/google/login';
 	};
-
 	
 	return (
 		

@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import { deleteRow, updateValues } from '../google-drive';
 import { rangeA1 } from '../google-drive';
 import { type Spreadsheet } from '../google-drive';
-import '/style.css';
 import './details.css';
 
 const TRANSACTION_SHEET_NAME = 'transactions';
@@ -150,7 +149,7 @@ function formatMoney(amount: string): string {
         style: 'currency', currency: 'USD',
         minimumFractionDigits: 0, maximumFractionDigits: 0,
     });
-    const formattedAmount = formatter.format(BigInt(n)) + '.' + (f.substring(0, Math.min(2, f.length)) ?? '').padStart(2, '0');
+    const formattedAmount = formatter.format(BigInt(n)) + '.' + (f.substring(0, Math.min(2, f.length)) ?? '').padEnd(2, '0');
     return formattedAmount;
 }
 

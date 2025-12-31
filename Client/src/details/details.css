@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import '../style.css';
 
 @layer components {
     @media (max-width: 768px) { /* mobile */
@@ -15,8 +16,8 @@
         @apply absolute m-auto w-(--width) left-[calc(50%-0.5*var(--width))];
     }
     .add-transaction-btn {
-        @apply rounded-2xl shadow-xl bg-amber-300
-        hover:scale-[105%] hover:bg-amber-400 hover:cursor-pointer
+        @apply rounded-2xl shadow-xl bg-secondary
+        hover:scale-[105%] hover:bg-secondary/80 hover:cursor-pointer
         text-center p-2 mx-8
         fixed right-0 m-4 z-50;
     }
@@ -37,7 +38,7 @@
         }
     }
     section {
-        @apply rounded-2xl shadow-xl bg-amber-300 dark:bg-[#808000]
+        @apply rounded-2xl shadow-xl bg-secondary
         p-2 m-(--section-margin);
     }
     h1{
@@ -66,9 +67,9 @@
         @apply 
         w-full p-2
         grid grid-cols-5 grid-rows-1 items-center
-        rounded-xl shadow-2xs bg-amber-50 text-[#626900] dark:bg-[#e0e00080] dark:text-[#222200]
+        rounded-xl shadow-2xs bg-chart-3 text-secondary-foreground 
         duration-150
-        hover:scale-[102%] hover:cursor-pointer hover:bg-amber-100;
+        hover:scale-[102%] hover:cursor-pointer hover:bg-chart-3/80;
     }
     .transaction-item-time {
         @apply col-span-2;
@@ -106,7 +107,7 @@
     .modal-content {
         --modal-content-width: calc(min(var(--modal-width), 600px));
         --modal-content-height: calc(min(var(--modal-height), 800px));
-        @apply dark:bg-[#404030] bg-[#f3ffac] absolute 
+        @apply dark:bg-[#404030] bg-secondary absolute 
         overflow-y-auto
         rounded-2xl p-8
         m-auto w-(--modal-content-width) h-(--modal-content-height) left-[calc(0.5*var(--modal-width)-0.5*var(--modal-content-width))] top-[calc(0.5*var(--modal-height)-0.5*var(--modal-content-height))];

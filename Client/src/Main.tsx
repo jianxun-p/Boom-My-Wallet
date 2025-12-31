@@ -4,6 +4,7 @@ import "/style.css";
 import * as googleDrive from "./google-drive";
 import type { Spreadsheet } from './google-drive';
 import Details from './details/details';
+// import Summary from './summary/Summary';
 
 export function MenuBarItem({ logo, text, onClick }: {logo: string | ReactNode, text: string | ReactNode, onClick?: {(): void} }) {
     return (
@@ -44,6 +45,12 @@ export function Content({page, spreadsheet, accessToken}: {page: string, spreads
                 <Details spreadsheet={spreadsheet} accessToken={accessToken} />
             </div>
         );
+    // } else if (page === 'Home') {
+    //     return (
+    //         <div className='content-wrapper'>
+    //             <Summary spreadsheet={spreadsheet} accessToken={accessToken} />
+    //         </div>
+    //     );
     } else {
         return <></>;
     }
@@ -51,7 +58,12 @@ export function Content({page, spreadsheet, accessToken}: {page: string, spreads
 
 export function App() {
     const [page, setPage] = useState('Home');
-    const [spreadsheet, setSpreadsheet] = useState<Spreadsheet>({id: "", name: "", sheets: []});
+    const [spreadsheet, setSpreadsheet] = useState<Spreadsheet>({id: "", name: "", sheets: [{
+        id: 0,
+        name: 'transactions',
+        columns: ["Time", "Amount", "Category", "Name", "Merchant", "PaymentMethod", "Location", "Latitude", "Longitude", "Description"],
+        values: [['2025-11-27 00:00:00', '100', 'Entertainment', 'My Store', 'My Store', 'Cash', 'My Store', '0.000000', '0.000000', 'Happy Birthday']]
+    }]});
     const [accessToken, setAccessToken] = useState<string>("");
     useEffect(() => {
         fetch('/oauth/google/access_token')

@@ -6,6 +6,19 @@ export interface Worksheet {
     values: string[][],
 };
 
+export interface Transaction {
+    row: number,
+    time: Date,
+    amount: string,
+    category: string,
+    name: string,
+    merchant: string,
+    paymentMethod: string,
+    location: string,
+    position: string,
+    description: string,
+};
+
 export interface Spreadsheet {
     id: string,
     name: string,

@@ -33,6 +33,9 @@ app.use(session({
     rolling: true,              // Resets maxAge on each response
     cookie: { secure: PRDOUCTION, maxAge: 30 * 60000, httpOnly: true, sameSite: 'strict' } // Use secure cookies in production (requires HTTPS)
 }));
+app.use(function(_req, res, next){ res.header('X-Frame-Options', 'DENY'); next(); });       // reject browser embedding page in other pages
+
+
 const INSECURE_KEY = crypto.generateKeySync('hmac', {length: 32});
 
 
@@ -134,6 +137,34 @@ function aesDecrypt(cipherText, key, iv, authTag) {
     return plaintext;
 }
 
+
+
+const REQUIRED_AUTH_SCOPES = [
+    'openid', 
+    'https://www.googleapis.com/auth/userinfo.email', 
+    'https://www.googleapis.com/auth/userinfo.profile', 
+    'https://www.googleapis.com/auth/drive.file'
+];
+const AUTH_SCOPES = REQUIRED_AUTH_SCOPES.join(' ');
+async function getOauthRedirectUrl(req) {
+    const statePayload = { 
+        ts: Date.now(), 
+        ip: req.ip, 
+        ua: req.headers['user-agent'] ,
+    };
+    const queryParams = new URLSearchParams({
+        client_id: (await secret.get('secrets')).google_oauth.web.client_id,
+        redirect_uri: `${HOST.PROTOCOL}://${HOST.ADDRESS}${GOOGLE_OAUTH_REDIRECT_PATH}`,
+        response_type: 'code',
+        access_type: 'offline',     // also get refresh token
+        scope: AUTH_SCOPES,
+        prompt: 'consent',
+        state: jwt.sign(statePayload, gauthHmacKey[gauthHmacKey.length - 1], { algorithm: 'HS512', expiresIn: 2 * 60 }),    // 2 mins
+    });
+    return 'https://accounts.google.com/o/oauth2/v2/auth?' + queryParams.toString();
+}
+
+
 const GOOGLE_OAUTH_REDIRECT_PATH = config.google_oauth.redirect_url;
 app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
     if (req.query.error)
@@ -167,18 +198,25 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
         console.log('bad response (missing email in payload of response.id_token):', response);
         return res.sendStatus(401);
     }
-    if (!response.refresh_token) {
-        console.log('bad response (missing refresh_token in response):', response);
-        return res.sendStatus(401);
+    if (response.refresh_token) 
+        req.session.refreshToken = response.refresh_token;
+    if (response.access_token)
+        req.session.accessToken = jwt.sign({accessToken: response.access_token}, INSECURE_KEY, {expiresIn: response.expires_in - 10});
+    if (response.id_token)
+        req.session.idToken = jwt.sign({idToken: response.id_token}, INSECURE_KEY);
+    const acquiredScopes = response.scope.split(' ');
+    const hasAllScope = REQUIRED_AUTH_SCOPES.reduce((acc, i) => acc && acquiredScopes.indexOf(i) >= 0, true);
+    if (!hasAllScope) {
+        return res.redirect(307, await getOauthRedirectUrl(req));
     }
     
-    // store refresh_token in db
+    // store refreshToken to db
     const docRef = database.collection('users').doc(email);
     const now = Date.now();
     const refreshTokenEncKey = (await secret.get('secrets')).refresh_token_encryption_key;
     const update = (data) => {
-        if (response.refresh_token) {
-            const {iv, cipherText, authTag} = aesEncrypt(response.refresh_token, Buffer.from(refreshTokenEncKey, 'hex'));
+        if (req.session.refreshToken) {
+            const {iv, cipherText, authTag} = aesEncrypt(req.session.refreshToken, Buffer.from(refreshTokenEncKey, 'hex'));
             data.auth.refresh_token = cipherText;
             data.auth.refresh_token_iv = iv;
             data.auth.refresh_token_auth_tag = authTag;
@@ -199,8 +237,6 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
         return await docRef.set(update(data));
     });
 
-    req.session.accessToken = jwt.sign({accessToken: response.access_token}, INSECURE_KEY, {expiresIn: response.expires_in - 10});
-    req.session.idToken = jwt.sign({idToken: response.id_token}, INSECURE_KEY);
     res.redirect(307, '/index.html');
 });
 
@@ -213,32 +249,10 @@ app.get('/oauth/google/access_token', (req, res) => {
     }
 });
 
-const AUTH_SCOPES = [
-    'openid', 
-    'https://www.googleapis.com/auth/userinfo.email', 
-    'https://www.googleapis.com/auth/userinfo.profile', 
-    'https://www.googleapis.com/auth/drive.file'
-].join(' ');
+
 app.get('/oauth/google/login', async (req, res) => {
-    const statePayload = { 
-        ts: Date.now(), 
-        ip: req.ip, 
-        ua: req.headers['user-agent'] ,
-    };
-    const queryParams = new URLSearchParams({
-        client_id: (await secret.get('secrets')).google_oauth.web.client_id,
-        redirect_uri: `${HOST.PROTOCOL}://${HOST.ADDRESS}${GOOGLE_OAUTH_REDIRECT_PATH}`,
-        response_type: 'code',
-        access_type: 'offline',     // also get refresh token
-        scope: AUTH_SCOPES,
-        prompt: 'consent',
-        state: jwt.sign(statePayload, gauthHmacKey[gauthHmacKey.length - 1], { algorithm: 'HS512', expiresIn: 2 * 60 }),    // 2 mins
-    });
-    const authUri = 'https://accounts.google.com/o/oauth2/v2/auth?' + queryParams.toString();
-    res.cookie("google_oauth_uri", authUri, { maxAge: 10000, secure: PRDOUCTION, sameSite: true, path: '/login.html' }); // 10 sec (should be enough for client to pickup)
-    res.header('X-Frame-Options', 'DENY');
-    const redirectParams = (new URLSearchParams(req.query)).toString();
-    res.redirect(307, `/login.html${redirectParams.length > 0 ? '?' : ''}${redirectParams}`);
+    const authUri = await getOauthRedirectUrl(req);
+    res.redirect(307, authUri);
 });
 
 
