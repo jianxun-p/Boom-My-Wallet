@@ -1,0 +1,161 @@
+@import "tailwindcss";
+@import '../style.css';
+
+@layer components {
+    @media (max-width: 768px) { /* mobile */
+        .transaction-wrapper {
+            --width: calc(100%);
+        }
+    }
+    @media (min-width: 769px) {
+        .transaction-wrapper {
+            --width: calc(min(85%, 900px));
+        }
+    }
+    .transaction-wrapper {
+        @apply absolute m-auto w-(--width) left-[calc(50%-0.5*var(--width))];
+    }
+    .add-transaction-btn {
+        @apply rounded-2xl shadow-xl bg-secondary
+        hover:scale-[105%] hover:bg-secondary/80 hover:cursor-pointer
+        text-center p-2 mx-8
+        fixed right-0 m-4 z-50;
+    }
+    @media (max-width: 768px) { /* mobile */
+        section {
+            --section-margin: calc(var(--spacing) * 2);
+        }
+        .add-transaction-btn {
+            @apply bottom-(--menubar-height);
+        }
+    }
+    @media (min-width: 769px) {
+        section {
+            --section-margin: calc(var(--spacing) * 8);
+        }
+        .add-transaction-btn {
+            @apply bottom-0;
+        }
+    }
+    section {
+        @apply rounded-2xl shadow-xl bg-secondary
+        p-2 m-(--section-margin);
+    }
+    h1{
+        @apply
+        w-full
+        justify-center
+        p-4 font-bold font-mono text-5xl;
+    }
+    h2{
+        @apply
+        w-full
+        justify-center
+        p-3 font-bold font-mono text-3xl;
+    }
+    .transaction-content{
+        @apply
+        w-full;
+    }
+    .transaction-header-row {
+        @apply 
+        w-full p-2
+        grid grid-cols-5 grid-rows-1
+        rounded-xl shadow-2xs bg-[#c68800a0]
+    }
+    .transaction-item {
+        @apply 
+        w-full p-2
+        grid grid-cols-5 grid-rows-1 items-center
+        rounded-xl shadow-2xs bg-chart-3 text-secondary-foreground 
+        duration-150
+        hover:scale-[102%] hover:cursor-pointer hover:bg-chart-3/80;
+    }
+    .transaction-item-time {
+        @apply col-span-2;
+    }
+    .transaction-item-merchant {
+        @apply col-span-1;
+    }
+    .transaction-item-category {
+        @apply col-span-1;
+    }
+    .transaction-item-amount {
+        @apply col-span-1 justify-end;
+    }
+}
+
+@layer components {
+    @media (max-width: 768px) {     /* mobile */
+        .modal {
+            --modal-width: 100%;
+            --modal-height: 100%;
+            @apply left-0 bottom-(--menubar-height);
+        }
+    }
+    @media (min-width: 769px) {
+        .modal {
+            --modal-width: 100%;
+            --modal-height: 100%;
+            @apply left-(--menubar-width) bottom-0;
+        }
+    }
+    .modal {
+        @apply open:backdrop-blur-xs open:bg-[#00000050] open:opacity-100 transition-opacity not-open:opacity-0 not-open:invisible open:visible
+        fixed top-0 right-0 z-100 duration-300;
+    }
+    .modal-content {
+        --modal-content-width: calc(min(var(--modal-width), 600px));
+        --modal-content-height: calc(min(var(--modal-height), 800px));
+        @apply dark:bg-[#404030] bg-secondary absolute 
+        overflow-y-auto
+        rounded-2xl p-8
+        m-auto w-(--modal-content-width) h-(--modal-content-height) left-[calc(0.5*var(--modal-width)-0.5*var(--modal-content-width))] top-[calc(0.5*var(--modal-height)-0.5*var(--modal-content-height))];
+    }
+    .modal-items {
+        @apply grid items-center gap-y-1 
+        not-sm:grid-cols-1 sm:grid-cols-4;
+    }
+    .modal-item-label {
+        @apply col-span-1;
+    }
+    .modal-item-value {
+        @apply not-sm:col-span-1 sm:col-span-3;
+    }
+}
+
+
+@layer components {
+    button {
+		@apply p-2 rounded-sm hover:cursor-pointer w-full;
+	}
+    input {
+        @apply p-2 rounded-sm bg-amber-50 hover:bg-amber-100 hover:cursor-pointer w-full;
+    }
+    textarea {
+        @apply overflow-auto p-2 border-solid border-2 rounded-sm bg-amber-50 hover:bg-amber-100 hover:cursor-pointer w-full;
+    }
+    .dropdown-container {
+        @apply relative w-full;
+    }
+    .dropdown-list {
+        @apply overflow-auto z-10 w-full absolute bg-amber-50 transition-all duration-300 ease-in-out;
+    }
+    .dropdown-list-item {
+        @apply p-1 hover:bg-amber-100 w-full;
+    }
+}
+
+@layer components {
+    .datetime-selector-container {
+        /* Default (Mobile): Stack vertically, full width, centered */
+        @apply flex flex-col items-center justify-center space-y-4 
+               sm:flex-row sm:space-y-0 sm:space-x-4; /* Tablet/Desktop: Row layout */
+    }
+    .datetime-selector-container .date-selector-container,
+    .datetime-selector-container .time-selector-container {
+        /* Both children take full width on mobile, split half on tablet+ */
+        @apply w-full sm:w-1/2 flex items-center justify-between;
+    }
+}
+
