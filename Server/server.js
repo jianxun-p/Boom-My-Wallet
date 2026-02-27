@@ -26,10 +26,10 @@ app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${r
 app.use(express.static(path.join(__dirname, '..', 'Client', 'static')));
 app.use(bodyParser.json());
 app.use(cookieParser());
+app.set('trust proxy', 1);
 app.use(session({
     secret: crypto.generateKeySync('hmac', {length: 512}),        // A strong, random string for signing the session ID cookie
     resave: false,              // Don't save session if unmodified
-    saveUninitialized: false,   // Don't save uninitialized sessions
     rolling: true,              // Resets maxAge on each response
     cookie: { secure: PRDOUCTION, maxAge: 30 * 60000, httpOnly: true, sameSite: 'strict' } // Use secure cookies in production (requires HTTPS)
 }));
@@ -122,19 +122,23 @@ setInterval(
 );     
 
 function aesEncrypt(plaintext, key) {
-    const iv = crypto.randomBytes(16);
+    const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    let cipherText = cipher.update(plaintext, 'utf8', 'hex');
-    cipherText += cipher.final('hex');
-    return { iv: iv.toString('hex'), cipherText: cipherText, authTag: cipher.getAuthTag().toString('hex') };
+    let cipherText = cipher.update(plaintext, 'utf8', 'base64');
+    cipherText += cipher.final('base64');
+    return { iv: iv.toString('base64'), cipherText: cipherText, authTag: cipher.getAuthTag().toString('base64') };
 }
 
 function aesDecrypt(cipherText, key, iv, authTag) {
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-    decipher.setAuthTag(authTag);
-    let plaintext = decipher.update(cipherText, 'hex', 'utf8');
-    plaintext += decipher.final('utf8');
-    return plaintext;
+    try {
+        const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+        decipher.setAuthTag(authTag);
+        let plaintext = decipher.update(cipherText, 'base64', 'utf8');
+        plaintext += decipher.final('utf8');
+        return plaintext;
+    } catch (e) {
+        return null;
+    }
 }
 
 
@@ -168,7 +172,7 @@ async function getOauthRedirectUrl(req) {
 const GOOGLE_OAUTH_REDIRECT_PATH = config.google_oauth.redirect_url;
 app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
     if (req.query.error)
-        res.redirect(307, '/login?' + (new URLSearchParams(req.query)).toString());
+        return res.redirect(307, '/login?' + (new URLSearchParams(req.query)).toString());
     const reqState = req.query.state;
     const statePayload = gauthHmacKey.reduceRight((acc, key) => {
         try {
@@ -195,7 +199,7 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
     }).then(res => res.json());
     const email = jwt.decode(response?.id_token ?? "").email;
     if (!email) {
-        console.log('bad response (missing email in payload of response.id_token):', response);
+        console.warn('bad response (missing email in payload of response.id_token):', response);
         return res.sendStatus(401);
     }
     if (response.refresh_token) 
@@ -216,7 +220,7 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
     const refreshTokenEncKey = (await secret.get('secrets')).refresh_token_encryption_key;
     const update = (data) => {
         if (req.session.refreshToken) {
-            const {iv, cipherText, authTag} = aesEncrypt(req.session.refreshToken, Buffer.from(refreshTokenEncKey, 'hex'));
+            const {iv, cipherText, authTag} = aesEncrypt(req.session.refreshToken, Buffer.from(refreshTokenEncKey, 'base64'));
             data.auth.refresh_token = cipherText;
             data.auth.refresh_token_iv = iv;
             data.auth.refresh_token_auth_tag = authTag;
@@ -266,17 +270,28 @@ app.post('/api/v1/transaction', async (req, res) => {
     if (!doc.exists)
         return res.sendStatus(403);
     const data = doc.data();
-    if (!data.auth.access_tokens.find(at => at.token === token))
+    const tokenBuf = crypto.hash("sha256", Buffer.from(token, 'base64'));       // TODO: check if it is contained in data breaches
+    const foundAccessToken = data.auth.access_tokens.find(at => {
+        if (!at.hash || !at.salt)
+            return false;
+        const storedHash = Buffer.from(at.hash, 'base64');
+        const storedSalt = Buffer.from(at.salt, 'base64');
+        const hashedToken = crypto.scryptSync(tokenBuf, storedSalt, 64);
+        return tokenBuf.length == storedHash.length && crypto.timingSafeEqual(storedHash, hashedToken);
+    });
+    if (!foundAccessToken)
         return res.sendStatus(403);
-    if (!data.auth.refresh_token || !data.auth.refresh_token_iv)
+    if (!data.auth.refresh_token || !data.auth.refresh_token_iv || !data.auth.refresh_token_auth_tag)
         return res.sendStatus(403);
     const refreshTokenEncKey = (await secret.get('secrets')).refresh_token_encryption_key;
     const refreshToken = aesDecrypt(
         data.auth.refresh_token, 
-        Buffer.from(refreshTokenEncKey, 'hex'), 
-        Buffer.from(data.auth.refresh_token_iv, 'hex'),
-        Buffer.from(data.auth.refresh_token_auth_tag, 'hex')
+        Buffer.from(refreshTokenEncKey, 'base64'), 
+        Buffer.from(data.auth.refresh_token_iv, 'base64'),
+        Buffer.from(data.auth.refresh_token_auth_tag, 'base64')
     );
+    if (!refreshToken)
+        return res.sendStatus(500);
     const response = await getNewAccessToken(refreshToken);
     if (!response.access_token)
         return res.sendStatus(401);
@@ -297,6 +312,7 @@ app.post('/api/v1/transaction', async (req, res) => {
         return res.sendStatus(500);
     return res.sendStatus(200);
 });
+
 
 secret.init()
 .then(getHostname)

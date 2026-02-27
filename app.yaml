@@ -12,7 +12,16 @@ automatic_scaling:
   target_cpu_utilization: 0.95
 
 handlers:
+- url: /assets
+  static_dir: Client/static/assets
+  secure: always
+
+# 2. Handle the static HTML files (like login.html)
 - url: /static
   static_dir: Client/static
   secure: always
-  redirect_http_response_code: 301
+
+# 3. Fallback to your Node.js server for everything else
+- url: /.*
+  script: auto
+  secure: always
