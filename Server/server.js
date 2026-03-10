@@ -11,7 +11,6 @@ const jwt = require('jsonwebtoken');
 const config = require(path.join(__dirname, '..', 'boommywallet-config.json'));
 const secret = require('./secrets');
 const {addRow} = require('./googleapis');
-const e = require('express');
 
 let HOST = {
     PROTOCOL: 'http',
