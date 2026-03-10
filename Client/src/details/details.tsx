@@ -340,10 +340,28 @@ function DetailModal(
     </div>;
 }
 
-export default function Details({spreadsheet, accessToken}: {spreadsheet: State<Spreadsheet>, accessToken: string}) {
+
+
+
+function ConnectGoogleSheets() {
+    const login = () => {
+        window.location.href = '/login.html?connect=GoogleSheets';
+    };
+    return <>
+    <h1 className='transaction-header text-center pb-0 pt-8'>Details</h1>
+    <div className='connect-google-sheets-btn my-8' onClick={login}>
+        Connect with Google Sheets
+    </div>
+    </>;
+}
+
+export default function Details({spreadsheet, accessToken}: {spreadsheet: State<Spreadsheet | null>, accessToken: string}) {
     const [transactionsByMonth, setTransactionsByMonth] = useState<Transaction[][]>([]);
+    if (!spreadsheet.get)
+        return <ConnectGoogleSheets />;
+
     const transactionSheet = useMemo(
-        () => spreadsheet.get.sheets.filter(sheet => sheet.name === TRANSACTION_SHEET_NAME)[0] ?? {name: TRANSACTION_SHEET_NAME, columns: [], values: []}, 
+        () => spreadsheet.get?.sheets.filter(sheet => sheet.name === TRANSACTION_SHEET_NAME)[0] ?? {name: TRANSACTION_SHEET_NAME, columns: [], values: []}, 
         [spreadsheet.get.sheets]
     );
     const [categories, setCategories] = useState<string[]>([]);
@@ -383,7 +401,7 @@ export default function Details({spreadsheet, accessToken}: {spreadsheet: State<
     return <>
     <DetailModal 
         transaction={{get: transactionDetail, set: setTransactionDetail}} 
-        spreadsheet={spreadsheet} 
+        spreadsheet={spreadsheet as State<Spreadsheet>} 
         accessToken={accessToken} 
         categories={{get: categories, set: setCategories}}
         paymentMethods={{get: paymentMethods, set: setPaymentMethods}}

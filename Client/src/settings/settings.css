@@ -1,1 +1,79 @@
 @import "tailwindcss";
+@import '../style.css';
+
+@layer components {
+    @media (max-width: 768px) { /* mobile */
+        .settings-wrapper {
+            --width: calc(100%);
+        }
+    }
+    @media (min-width: 769px) {
+        .settings-wrapper {
+            --width: calc(min(85%, 900px));
+        }
+    }
+    .settings-wrapper {
+        @apply absolute m-auto w-(--width) left-[calc(50%-0.5*var(--width))];
+    }
+    /* .add-transaction-btn {
+        @apply rounded-2xl shadow-xl bg-secondary
+        hover:scale-[105%] hover:bg-secondary/80 hover:cursor-pointer
+        text-center p-2 mx-8
+        fixed right-0 m-4 z-50;
+    } */
+    @media (max-width: 768px) { /* mobile */
+        section {
+            --section-margin: calc(var(--spacing) * 2);
+        }
+        /* .add-transaction-btn {
+            @apply bottom-(--menubar-height);
+        } */
+    }
+    @media (min-width: 769px) {
+        section {
+            --section-margin: calc(var(--spacing) * 8);
+        }
+        /* .add-settings-btn {
+            @apply bottom-0;
+        } */
+    }
+    section {
+        @apply rounded-2xl shadow-xl bg-secondary
+        p-2 m-(--section-margin);
+    }
+    h1{
+        @apply
+        w-full
+        justify-center
+        p-4 font-bold font-mono text-5xl;
+    }
+    h2{
+        @apply
+        w-full
+        justify-center
+        p-3 font-bold font-mono text-3xl;
+    }
+    .settings-content{
+        @apply w-full;
+    }
+    .settings-header-row {
+        @apply 
+        w-full p-2
+        grid grid-cols-5 grid-rows-1
+        rounded-xl shadow-2xs bg-[#c68800a0]
+    }
+    .settings-item {
+        @apply 
+        w-full p-2
+        grid grid-cols-5 grid-rows-1 items-center
+        rounded-xl shadow-2xs bg-chart-3 text-secondary-foreground 
+        duration-150
+        hover:scale-[102%] hover:cursor-pointer hover:bg-chart-3/80;
+    }
+    .settings-item-name {
+        @apply col-span-2;
+    }
+    .settings-item-value {
+        @apply col-span-3;
+    }
+}

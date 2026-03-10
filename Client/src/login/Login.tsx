@@ -7,14 +7,15 @@ export function Login() {
 	
 	const [errMsg, setErrMsg] = useState<string>("");
 
+	const params = new URLSearchParams(window.location.search);
+
 	useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
 		setErrMsg(params.get('error') ?? "");
 	}, []);
 	
 	const googleOauthSignIn = () => {
 		if (window.top) 
-			window.top.location.href = '/oauth/google/login';
+			window.top.location.href = '/oauth/google/login?' + params.toString();
 	};
 	
 	return (

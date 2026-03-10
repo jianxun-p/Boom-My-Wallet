@@ -241,6 +241,17 @@ export async function deleteRow(accessToken: string, spreadsheetId: string, work
     .then(res => res.json());
 }
 
+async function updateGoogleSheetsInfo(spreadsheetId: string, folderId: string | null) {
+    const q = new URLSearchParams({
+        'spreadsheetId': spreadsheetId,
+    });
+    if (folderId) {
+        q.set('folderId', folderId);
+    }
+    return await fetch(`/api/v1/google_sheets?${q.toString()}`, {
+        method: 'PUT',
+    });
+}
 
 export async function initSpreadsheet(accessToken: string): Promise<Spreadsheet | null> {
     const files = await listFiles(accessToken);
@@ -268,6 +279,7 @@ export async function initSpreadsheet(accessToken: string): Promise<Spreadsheet 
     }
     const worksheets: Worksheet[] = [];
     const promises = [];
+    promises.push(updateGoogleSheetsInfo(spreadsheet.spreadsheetId, folder.id));
     const worksheetIdMap = new Map<string, number>();
     for (const [sheetname, columns] of Object.entries(SPREADSHEET_SCHEMA)) {
         const sheet = (spreadsheet.sheets ?? []).filter((s: null | {properties?:{title?:string}}) => s?.properties?.title === sheetname)[0];

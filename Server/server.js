@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
 const config = require(path.join(__dirname, '..', 'boommywallet-config.json'));
 const secret = require('./secrets');
 const {addRow} = require('./googleapis');
+const e = require('express');
 
 let HOST = {
     PROTOCOL: 'http',
@@ -64,10 +65,13 @@ async function getHostname() {
 /**
  * revokes access_token or refresh_token
  * @see https://developers.google.com/identity/protocols/oauth2/web-server#tokenrevoke
- * @param {string} token 
+ * @param {string | null} token 
  * @returns {boolean} true on success
  */
 async function revokeToken(token) {
+    if (!token) {
+        return true;
+    }
     return await fetch ('https://oauth2.googleapis.com/revoke?' + new URLSearchParams({token: token}).toString(), {
         method: 'POST',
         headers: {
@@ -143,12 +147,18 @@ function aesDecrypt(cipherText, key, iv, authTag) {
 
 
 
+const LOGIN_AUTH_SCOPES = [
+    'openid', 
+    'https://www.googleapis.com/auth/userinfo.email', 
+    'https://www.googleapis.com/auth/userinfo.profile'
+];
 const REQUIRED_AUTH_SCOPES = [
     'openid', 
     'https://www.googleapis.com/auth/userinfo.email', 
     'https://www.googleapis.com/auth/userinfo.profile', 
     'https://www.googleapis.com/auth/drive.file'
 ];
+const LOGIN_SCOPES = LOGIN_AUTH_SCOPES.join(' ');
 const AUTH_SCOPES = REQUIRED_AUTH_SCOPES.join(' ');
 async function getOauthRedirectUrl(req) {
     const statePayload = { 
@@ -161,7 +171,7 @@ async function getOauthRedirectUrl(req) {
         redirect_uri: `${HOST.PROTOCOL}://${HOST.ADDRESS}${GOOGLE_OAUTH_REDIRECT_PATH}`,
         response_type: 'code',
         access_type: 'offline',     // also get refresh token
-        scope: AUTH_SCOPES,
+        scope: req.query.connect ? AUTH_SCOPES : LOGIN_SCOPES,
         prompt: 'consent',
         state: jwt.sign(statePayload, gauthHmacKey[gauthHmacKey.length - 1], { algorithm: 'HS512', expiresIn: 2 * 60 }),    // 2 mins
     });
@@ -197,49 +207,59 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body.toString()
     }).then(res => res.json());
-    const email = jwt.decode(response?.id_token ?? "").email;
-    if (!email) {
-        console.warn('bad response (missing email in payload of response.id_token):', response);
+    const id_token = jwt.decode(response?.id_token ?? "");
+    const email = id_token.email;
+    const uid = id_token.sub;
+    if (!uid) {
+        console.warn('bad response (missing sub in payload of response.id_token):', response);
         return res.sendStatus(401);
     }
+    req.session.email = email;
+    req.session.uid = uid;
+    console.log(`User ${email} (${uid}) logged in with Google OAuth2.0`);
     if (response.refresh_token) 
         req.session.refreshToken = response.refresh_token;
     if (response.access_token)
         req.session.accessToken = jwt.sign({accessToken: response.access_token}, INSECURE_KEY, {expiresIn: response.expires_in - 10});
     if (response.id_token)
         req.session.idToken = jwt.sign({idToken: response.id_token}, INSECURE_KEY);
-    const acquiredScopes = response.scope.split(' ');
-    const hasAllScope = REQUIRED_AUTH_SCOPES.reduce((acc, i) => acc && acquiredScopes.indexOf(i) >= 0, true);
-    if (!hasAllScope) {
-        return res.redirect(307, await getOauthRedirectUrl(req));
-    }
+    // const acquiredScopes = response.scope.split(' ');
+    // const hasAllScope = REQUIRED_AUTH_SCOPES.reduce((acc, i) => acc && acquiredScopes.indexOf(i) >= 0, true);
+    // if (!hasAllScope) {
+    //     return res.redirect(307, await getOauthRedirectUrl(req));
+    // }
     
     // store refreshToken to db
-    const docRef = database.collection('users').doc(email);
-    const now = Date.now();
-    const refreshTokenEncKey = (await secret.get('secrets')).refresh_token_encryption_key;
-    const update = (data) => {
-        if (req.session.refreshToken) {
-            const {iv, cipherText, authTag} = aesEncrypt(req.session.refreshToken, Buffer.from(refreshTokenEncKey, 'base64'));
-            data.auth.refresh_token = cipherText;
-            data.auth.refresh_token_iv = iv;
-            data.auth.refresh_token_auth_tag = authTag;
-            data.auth.refresh_token_t = now;
-        }
-        return data;
-    };
-    docRef.get().then(async doc => {
-        let data = {        // default for new registered users
-            auth: { access_tokens: [], }, 
-            register_time: now, 
-            version: '1'
+    if (response.refresh_token) {
+        const docRef = database.collection('users').doc(uid);
+        const now = Date.now();
+        const refreshTokenEncKey = (await secret.get('secrets')).refresh_token_encryption_key;
+        const update = (data) => {
+            if (response.refresh_token) {
+                const {iv, cipherText, authTag} = aesEncrypt(response.refresh_token, Buffer.from(refreshTokenEncKey, 'base64'));
+                data.auth = Object.assign(data.auth ?? {}, {
+                    refresh_token: cipherText,
+                    refresh_token_iv: iv,
+                    refresh_token_auth_tag: authTag,
+                    refresh_token_t: now,
+                });
+            }
+            return data;
         };
-        if (doc.exists) {
-            data = doc.data();
-            await revokeToken(data.auth.refresh_token);
-        }
-        return await docRef.set(update(data));
-    });
+        docRef.get().then(async doc => {
+            let data = {        // default for new registered users
+                email: email,
+                auth: { access_tokens: [], }, 
+                register_time: now, 
+                version: '1'
+            };
+            if (doc.exists) {
+                data = doc.data();
+                await revokeToken(data.auth.refresh_token);
+            }
+            return await docRef.set(update(data));
+        });
+    }
 
     res.redirect(307, '/index.html');
 });
@@ -260,13 +280,22 @@ app.get('/oauth/google/login', async (req, res) => {
 });
 
 
+app.get('/api/v1/account', async (req, res) => {
+    const acnt = {
+        email: req.session.email,
+        uid: req.session.uid,
+    };
+    res.json(acnt);
+});
+
+
 app.post('/api/v1/transaction', async (req, res) => {
     const token = req.headers['authorization'];
-    const email = req.body.email;
+    const uid = req.body.uid;
     const transaction = req.body.transaction;
-    if (!email || !token || !transaction) 
+    if (!uid || !token || !transaction) 
         return res.sendStatus(400);
-    const doc = await database.collection('users').doc(email).get();
+    const doc = await database.collection('users').doc(uid).get();
     if (!doc.exists)
         return res.sendStatus(403);
     const data = doc.data();
@@ -313,6 +342,22 @@ app.post('/api/v1/transaction', async (req, res) => {
     return res.sendStatus(200);
 });
 
+app.put('/api/v1/google_sheets', async (req, res) => {
+    const uid = req.session.uid;
+    const spreadsheetId = req.query.spreadsheetId;
+    const folderId = req.query.folderId || null;
+    if (!uid || !spreadsheetId) {
+        return res.sendStatus(400);
+    }
+    const docRef = database.collection('users').doc(uid);
+    await docRef.update({
+        'googleSheets': {
+            'spreadsheetId': spreadsheetId,
+            'folderId': folderId,
+        }
+    });
+    return res.sendStatus(200);
+});
 
 secret.init()
 .then(getHostname)

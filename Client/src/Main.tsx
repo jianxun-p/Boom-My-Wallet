@@ -4,7 +4,8 @@ import "/style.css";
 import * as googleDrive from "./google-drive";
 import type { Spreadsheet } from './google-drive';
 import Details from './details/details';
-// import Summary from './summary/Summary';
+import { Home } from './home/Home';
+import { Settings } from './settings/Settings';
 
 export function MenuBarItem({ logo, text, onClick }: {logo: string | ReactNode, text: string | ReactNode, onClick?: {(): void} }) {
     return (
@@ -24,7 +25,7 @@ export function MenuBar({setPage}: {setPage: Dispatch<SetStateAction<string>>}) 
             <div className='menu-bar-section-1'>
                 <MenuBarItem logo="🏠" text="Home" onClick={() => setPage('Home')} />
                 <MenuBarItem logo="📃" text="Transactions" onClick={() => setPage('Transactions')} />
-                <MenuBarItem logo="📅" text="Plan" onClick={() => setPage('Plan')} />
+                {/* <MenuBarItem logo="📅" text="Plan" onClick={() => setPage('Plan')} /> */}
             </div>
             <div className='menu-bar-section-2'>
                 <MenuBarItem logo="⚙️" text="Settings" onClick={() => setPage('Settings')} />
@@ -38,32 +39,41 @@ interface State<T> {
     set: Dispatch<SetStateAction<T>>
 }
 
-export function Content({page, spreadsheet, accessToken}: {page: string, spreadsheet: State<Spreadsheet>, accessToken: string}) {
-    if (page === 'Transactions') {
+
+interface AppData {
+    page: State<string>,
+    accessToken: State<string>,
+    spreadsheet: State<Spreadsheet | null>
+}
+
+export function Content(data: AppData) {
+    if (data.page.get === 'Transactions') {
         return (
             <div className='content-wrapper'>
-                <Details spreadsheet={spreadsheet} accessToken={accessToken} />
+                <Details spreadsheet={data.spreadsheet} accessToken={data.accessToken.get} />
             </div>
         );
-    // } else if (page === 'Home') {
-    //     return (
-    //         <div className='content-wrapper'>
-    //             <Summary spreadsheet={spreadsheet} accessToken={accessToken} />
-    //         </div>
-    //     );
+    } else if (data.page.get === 'Settings') {
+        return (
+            <div className='content-wrapper'>
+                <Settings />
+            </div>
+        );
+    } else if (data.page.get === 'Home') {
+        return (
+            <div className='content-wrapper'>
+                <Home />
+            </div>
+        );
     } else {
         return <></>;
     }
 }
 
+
 export function App() {
     const [page, setPage] = useState('Home');
-    const [spreadsheet, setSpreadsheet] = useState<Spreadsheet>({id: "", name: "", sheets: [{
-        id: 0,
-        name: 'transactions',
-        columns: ["Time", "Amount", "Category", "Name", "Merchant", "PaymentMethod", "Location", "Latitude", "Longitude", "Description"],
-        values: [['2025-11-27 00:00:00', '100', 'Entertainment', 'My Store', 'My Store', 'Cash', 'My Store', '0.000000', '0.000000', 'Happy Birthday']]
-    }]});
+    const [spreadsheet, setSpreadsheet] = useState<Spreadsheet | null>(null);
     const [accessToken, setAccessToken] = useState<string>("");
     useEffect(() => {
         fetch('/oauth/google/access_token')
@@ -76,12 +86,17 @@ export function App() {
         })
         .then(accessToken => googleDrive.initSpreadsheet(accessToken))
         .then(spreadsheet => { 
-            if (spreadsheet) setSpreadsheet(spreadsheet); else alert('Failed initializing spreadsheet, please contact me.'); 
+            if (spreadsheet) setSpreadsheet(spreadsheet);
         });
     }, []);
+    const data = {
+        page: { get: page, set: setPage },
+        accessToken: { get: accessToken, set: setAccessToken },
+        spreadsheet: { get: spreadsheet, set: setSpreadsheet }
+    };
     return <>
         <MenuBar setPage={setPage} />
-        <Content page={page} spreadsheet={{get: spreadsheet, set: setSpreadsheet}} accessToken={accessToken} />
+        <Content {...data} />
     </>;
 }
 

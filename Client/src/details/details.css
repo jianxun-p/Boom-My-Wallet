@@ -83,6 +83,10 @@
     .transaction-item-amount {
         @apply col-span-1 justify-end;
     }
+    .connect-google-sheets-btn {
+        @apply bg-secondary rounded-md shadow-md max-w-[500px] w-[50%] p-3 m-auto text-center
+        hover:cursor-pointer hover:scale-105 transform duration-300 ease-in-out;
+    }
 }
 
 @layer components {
