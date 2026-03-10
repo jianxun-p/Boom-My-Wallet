@@ -1,6 +1,7 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import '/style.css';
 import './settings.css';
+import { Footer } from '../footer';
 
 
 interface State<T> {
@@ -36,9 +37,8 @@ export function Settings() {
     useEffect(() => {
         getSettings({get: settings, set: setSettings});
     }, []);
-    return <>
-    <div className='settings-wrapper'>
-        <h1 className='settings-header text-center pb-0 pt-8'>Settings</h1>
+    return <div className='settings-wrapper'>
+        <h1 className='settings-header'>Settings</h1>
         <section>
         <h2 className='settings-header'>Accounts</h2>
         <div className='settings-content'>
@@ -46,6 +46,6 @@ export function Settings() {
             {settings.map(setting => <Entry name={setting.name} value={setting.value} />)}
         </div>
         </section>
-    </div>
-    </>;
+        <Footer />
+    </div>;
 }

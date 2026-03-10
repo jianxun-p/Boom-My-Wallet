@@ -6,6 +6,7 @@ import type { Spreadsheet } from './google-drive';
 import Details from './details/details';
 import { Home } from './home/Home';
 import { Settings } from './settings/Settings';
+import { Footer } from './footer';
 
 export function MenuBarItem({ logo, text, onClick }: {logo: string | ReactNode, text: string | ReactNode, onClick?: {(): void} }) {
     return (
@@ -66,7 +67,9 @@ export function Content(data: AppData) {
             </div>
         );
     } else {
-        return <></>;
+        return <div className='content-wrapper'>
+            <Footer />
+        </div>;
     }
 }
 

@@ -4,6 +4,7 @@ import { deleteRow, updateValues } from '../google-drive';
 import { rangeA1 } from '../google-drive';
 import { type Spreadsheet } from '../google-drive';
 import './details.css';
+import { Footer } from '../footer';
 
 const TRANSACTION_SHEET_NAME = 'transactions';
 
@@ -399,26 +400,28 @@ export default function Details({spreadsheet, accessToken}: {spreadsheet: State<
     const [transactionDetail, setTransactionDetail] = useState<Transaction | null>(null);
 
     return <>
-    <DetailModal 
-        transaction={{get: transactionDetail, set: setTransactionDetail}} 
-        spreadsheet={spreadsheet as State<Spreadsheet>} 
-        accessToken={accessToken} 
-        categories={{get: categories, set: setCategories}}
-        paymentMethods={{get: paymentMethods, set: setPaymentMethods}}
-    />
-    <div className='add-transaction-btn' onClick={() => setTransactionDetail(newEmptyTransaction(transactionSheet.values.length))}>➕</div>
-    <div className='transaction-wrapper'>
-        <h1 className='transaction-header text-center pb-0 pt-8'>Details</h1>
-        {transactionsByMonth.map(monthlyTransactions => {
-            const month = `${monthlyTransactions[0].time.getFullYear()} ${MONTHS[monthlyTransactions[0].time.getMonth()]}`;
-            return <section>
-            <h2 className='transaction-header'>{month}</h2>
-                <div className='transaction-content'>
-                    <HeaderRow />
-                    {monthlyTransactions.map(transaction => <Entry transaction={transaction} transactionDetail={{get: transactionDetail, set: setTransactionDetail}} />)}
-                </div>
-            </section>;
-        })}
-    </div>
+        <DetailModal 
+            transaction={{get: transactionDetail, set: setTransactionDetail}} 
+            spreadsheet={spreadsheet as State<Spreadsheet>} 
+            accessToken={accessToken} 
+            categories={{get: categories, set: setCategories}}
+            paymentMethods={{get: paymentMethods, set: setPaymentMethods}}
+        />
+        <div className='add-transaction-btn' onClick={() => setTransactionDetail(newEmptyTransaction(transactionSheet.values.length))}>➕</div>
+        <div className='transaction-wrapper'>
+        
+            <h1 className='transaction-header text-center pb-0 pt-8'>Details</h1>
+            {transactionsByMonth.map(monthlyTransactions => {
+                const month = `${monthlyTransactions[0].time.getFullYear()} ${MONTHS[monthlyTransactions[0].time.getMonth()]}`;
+                return <section>
+                <h2 className='transaction-header'>{month}</h2>
+                    <div className='transaction-content'>
+                        <HeaderRow />
+                        {monthlyTransactions.map(transaction => <Entry transaction={transaction} transactionDetail={{get: transactionDetail, set: setTransactionDetail}} />)}
+                    </div>
+                </section>;
+            })}
+            <Footer />
+        </div>
     </>;
 }

@@ -183,6 +183,10 @@ input, textarea {
 
 @layer components {
 
+    footer {
+        @apply mt-4 p-2 text-center bg-secondary w-full;
+    }
+
     .menu-bar {
         @apply fixed z-100000 left-0 
         grid bg-primary text-primary-foreground
@@ -277,3 +281,33 @@ input, textarea {
     }
 }
 
+
+@layer {
+    @media (max-width: 768px) { /* mobile */
+        section {
+            --section-margin: calc(var(--spacing) * 2);
+        }
+    }
+    @media (min-width: 769px) {
+        section {
+            --section-margin: calc(var(--spacing) * 8);
+        }
+    }
+    section {
+        @apply rounded-2xl shadow-xl bg-secondary
+        p-2 m-(--section-margin);
+    }
+    h1{
+        @apply
+        w-full
+        justify-center
+        p-4 font-bold font-mono text-5xl
+        text-center pb-0 pt-8;
+    }
+    h2{
+        @apply
+        w-full
+        justify-center
+        p-3 font-bold font-mono text-3xl;
+    }
+}

@@ -147,18 +147,13 @@ function aesDecrypt(cipherText, key, iv, authTag) {
 
 
 
-const LOGIN_AUTH_SCOPES = [
-    'openid', 
-    'https://www.googleapis.com/auth/userinfo.email', 
-    'https://www.googleapis.com/auth/userinfo.profile'
-];
+
 const REQUIRED_AUTH_SCOPES = [
     'openid', 
     'https://www.googleapis.com/auth/userinfo.email', 
     'https://www.googleapis.com/auth/userinfo.profile', 
     'https://www.googleapis.com/auth/drive.file'
 ];
-const LOGIN_SCOPES = LOGIN_AUTH_SCOPES.join(' ');
 const AUTH_SCOPES = REQUIRED_AUTH_SCOPES.join(' ');
 async function getOauthRedirectUrl(req) {
     const statePayload = { 
@@ -171,7 +166,7 @@ async function getOauthRedirectUrl(req) {
         redirect_uri: `${HOST.PROTOCOL}://${HOST.ADDRESS}${GOOGLE_OAUTH_REDIRECT_PATH}`,
         response_type: 'code',
         access_type: 'offline',     // also get refresh token
-        scope: req.query.connect ? AUTH_SCOPES : LOGIN_SCOPES,
+        scope: AUTH_SCOPES,
         prompt: 'consent',
         state: jwt.sign(statePayload, gauthHmacKey[gauthHmacKey.length - 1], { algorithm: 'HS512', expiresIn: 2 * 60 }),    // 2 mins
     });
