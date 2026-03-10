@@ -12,6 +12,7 @@ interface Transaction {
     row: number,
     time: Date,
     amount: string,
+    currency: string,
     category: string,
     name: string,
     merchant: string,
@@ -20,10 +21,10 @@ interface Transaction {
     position: string,
     description: string,
 };
-type TransactionStringField = 'amount' | 'category' | 'name' | 'merchant' | 'paymentMethod' | 'location' | 'position' | 'description';
+type TransactionStringField = 'amount' | 'currency' | 'category' | 'name' | 'merchant' | 'paymentMethod' | 'location' | 'position' | 'description';
 
 function newEmptyTransaction(row?: number): Transaction {
-    return { row: row ?? -1, time: new Date(), amount: '0', category: '', name: '', merchant: '', paymentMethod: '', location: '', position: '', description: '', };
+    return { row: row ?? -1, time: new Date(), amount: '0', currency: '', category: '', name: '', merchant: '', paymentMethod: '', location: '', position: '', description: '', };
 }
 
 function cloneTransaction(transaction: Transaction | null): Transaction {
@@ -374,6 +375,7 @@ export default function Details({spreadsheet, accessToken}: {spreadsheet: State<
                 row: rowI,
                 time: new Date(row[columnIndex.get('Time') ?? -1]),
                 amount: (row[columnIndex.get('Amount') ?? -1] ?? '').toString(),
+                currency: (row[columnIndex.get('Currency') ?? -1] ?? '').toString(),
                 category: (row[columnIndex.get('Category') ?? -1] ?? '').toString(),
                 name: (row[columnIndex.get('Name') ?? -1] ?? '').toString(),
                 merchant: (row[columnIndex.get('Merchant') ?? -1] ?? '').toString(),

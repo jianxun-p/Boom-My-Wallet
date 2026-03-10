@@ -10,6 +10,7 @@ export interface Transaction {
     row: number,
     time: Date,
     amount: string,
+    currency: string,
     category: string,
     name: string,
     merchant: string,
@@ -26,7 +27,7 @@ export interface Spreadsheet {
 };
 
 const SPREADSHEET_SCHEMA = {
-    "transactions": ["Time", "Amount", "Category", "Name", "Merchant", "PaymentMethod", "Location", "Latitude", "Longitude", "Description"],
+    "transactions": ["Time", "Amount", "Category", "Currency", "Name", "Merchant", "PaymentMethod", "Location", "Latitude", "Longitude", "Description"],
     "budgets": ["Time", "Amount", "Category", "Name", "Merchant", "PaymentMethod", "Location", "Latitude", "Longitude", "Description"],
     "general": ["Key", "Value"]
 };

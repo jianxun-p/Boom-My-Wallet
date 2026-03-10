@@ -210,18 +210,12 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
     }
     req.session.email = email;
     req.session.uid = uid;
-    console.log(`User ${email} (${uid}) logged in with Google OAuth2.0`);
     if (response.refresh_token) 
         req.session.refreshToken = response.refresh_token;
     if (response.access_token)
         req.session.accessToken = jwt.sign({accessToken: response.access_token}, INSECURE_KEY, {expiresIn: response.expires_in - 10});
     if (response.id_token)
         req.session.idToken = jwt.sign({idToken: response.id_token}, INSECURE_KEY);
-    // const acquiredScopes = response.scope.split(' ');
-    // const hasAllScope = REQUIRED_AUTH_SCOPES.reduce((acc, i) => acc && acquiredScopes.indexOf(i) >= 0, true);
-    // if (!hasAllScope) {
-    //     return res.redirect(307, await getOauthRedirectUrl(req));
-    // }
     
     // store refreshToken to db
     if (response.refresh_token) {
@@ -321,6 +315,7 @@ app.post('/api/v1/transaction', async (req, res) => {
     const row = [
         (transaction.time ? new Date(transaction.time) : new Date()).toString(), 
         transaction.amount.replace(/[^0-9.-]/g, ''), 
+        transaction.currency, 
         transaction.category, 
         transaction.name, 
         transaction.merchant, 
@@ -330,7 +325,9 @@ app.post('/api/v1/transaction', async (req, res) => {
         transaction.longitude, 
         transaction.description
     ];
-    const addRowRes = await addRow(response.access_token, req.body.spreadsheetId, 'transactions', row);
+    if (!data?.googleSheets?.spreadsheetId)
+        return res.sendStatus(400);
+    const addRowRes = await addRow(response.access_token, data.googleSheets.spreadsheetId, 'transactions', row);
     if (addRowRes.error)
         return res.sendStatus(500);
     return res.sendStatus(200);
