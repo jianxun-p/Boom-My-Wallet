@@ -4,7 +4,6 @@ const crypto = require('crypto');
 const path = require('path');
 const admin = require("firebase-admin");
 const { ApplicationsClient } = require('@google-cloud/appengine-admin').v1;
-const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 
@@ -13,10 +12,7 @@ const secret = require('./secrets');
 const {addRow} = require('./googleapis');
 
 let HOST = {
-    PROTOCOL: 'http',
-    HOSTNAME: 'localhost',
-    PORT: process.env.PORT ?? 5000,
-    ADDRESS: `localhost:${process.env.PORT ?? 5000}`
+    PORT: process.env.PORT,
 };
 
 const PRDOUCTION = process.env.NODE_ENV === 'production';
@@ -24,7 +20,8 @@ const PRDOUCTION = process.env.NODE_ENV === 'production';
 const app = express();
 app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
 app.use(express.static(path.join(__dirname, '..', 'Client', 'static')));
-app.use(bodyParser.json());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.set('trust proxy', 1);
 app.use(session({
@@ -41,23 +38,17 @@ const INSECURE_KEY = crypto.generateKeySync('hmac', {length: 32});
 
 const appengineClient = new ApplicationsClient();
 async function getHostname() {
-    
-    if (!PRDOUCTION) {    // https://docs.cloud.google.com/appengine/docs/standard/nodejs/runtime
-        console.log('Host:', HOST);
+    HOST.URL = process.env.APP_URL;
+    if (HOST.URL)
         return;
-    }
     // https://cloud.google.com/appengine/docs/admin-api/reference/rest/v1beta/apps/get
     const projectId = process.env.GOOGLE_CLOUD_PROJECT ?? config.gcp.projectId;
     const [response] = await appengineClient.getApplication({
         name: `apps/${projectId}`
     });
-    console.log('app engine client response', response);
     if (response.servingStatus === 'SERVING') {
-        HOST.PROTOCOL = 'https';
-        HOST.HOSTNAME = response.defaultHostname;
-        HOST.ADDRESS = HOST.HOSTNAME;
+        HOST.URL = "https://" + HOST.HOSTNAME;
     }
-    console.log('Host:', HOST);
 }
 
 
@@ -162,7 +153,7 @@ async function getOauthRedirectUrl(req) {
     };
     const queryParams = new URLSearchParams({
         client_id: (await secret.get('secrets')).google_oauth.web.client_id,
-        redirect_uri: `${HOST.PROTOCOL}://${HOST.ADDRESS}${GOOGLE_OAUTH_REDIRECT_PATH}`,
+        redirect_uri: `${HOST.URL}${GOOGLE_OAUTH_REDIRECT_PATH}`,
         response_type: 'code',
         access_type: 'offline',     // also get refresh token
         scope: AUTH_SCOPES,
@@ -194,7 +185,7 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
         client_id: (await secret.get('secrets')).google_oauth.web.client_id,
         client_secret: (await secret.get('secrets')).google_oauth.web.client_secret,
         grant_type: 'authorization_code',
-        redirect_uri: `${HOST.PROTOCOL}://${HOST.ADDRESS}${GOOGLE_OAUTH_REDIRECT_PATH}`
+        redirect_uri: `${HOST.URL}${GOOGLE_OAUTH_REDIRECT_PATH}`
     });
     const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -359,7 +350,7 @@ secret.init()
     database = admin.firestore();
 })
 .then(() => {
-    app.listen(HOST.PORT, () => console.log(`Server running on ${HOST.PROTOCOL}://${HOST.ADDRESS}`))
+    app.listen(HOST.PORT, () => console.log(`Server running on ${HOST.URL}`))
 	.on('error', e => console.error('Error starting server:', e));
 });
 

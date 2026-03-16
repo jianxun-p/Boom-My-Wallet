@@ -1,6 +1,7 @@
-secrets
-samples
 README.md
+
+.env
+.env.example
 
 .vscode
 
