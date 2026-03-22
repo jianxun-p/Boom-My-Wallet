@@ -20,6 +20,7 @@
     "firebase": "^12.4.0",
     "firebase-admin": "^13.5.0",
     "jsonwebtoken": "^9.0.2",
+    "mongodb": "^7.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.1.16"

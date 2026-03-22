@@ -3,18 +3,20 @@ FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
-COPY . .
+COPY tsconfig.* ./
+COPY eslint.config.js ./
+COPY vite.config.ts ./
+COPY Client ./Client
 RUN npm run build
 
 # Stage 2: Create the final lean production image
-FROM node:24-alpine AS production
+FROM node:24-alpine
 WORKDIR /app
 COPY --from=build /app/package*.json ./
-RUN npm install --omit=dev
-
-COPY --from=build /app/boommywallet-config.json ./
+COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/Client/static ./Client/static
-COPY --from=build /app/Server ./Server
+COPY Server ./Server
+COPY boommywallet-config.json ./
 
 # Use a non-root user for security best practices
 USER node

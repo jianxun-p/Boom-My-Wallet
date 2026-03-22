@@ -1,16 +1,47 @@
 services:
 
-  nginx:
-    build: ./nginx
-    ports:
-      - "8080:80"
-    depends_on:
-      - web
-
   web:
     build: ./web
     expose:
       - "5000"
     env_file:
       - ./web/.env
+    networks:
+      - backend-network
+      - frontend-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "5000:80"
+    depends_on:
+      - web
+    networks:
+      - frontend-network
   
+  mongodb:
+    image: mongo
+    expose:
+      - "27017"
+    env_file:
+      - ./mongodb/.env
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - backend-network
+    healthcheck: # Ensures Mongo Express waits for MongoDB to be ready
+      test: ["CMD", "mongosh", "mongodb://localhost:27017/admin", "--eval", "db.runCommand({ping:1})"]
+      retries: 3
+      timeout: 5s
+
+volumes:
+  mongodb_data:
+
+networks:
+  backend-network:
+    driver: bridge
+  frontend-network: # Definition for the custom bridge network
+    driver: bridge

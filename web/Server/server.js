@@ -18,7 +18,7 @@ let HOST = {
 const PRDOUCTION = process.env.NODE_ENV === 'production';
 
 const app = express();
-app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
+// app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
 app.use(express.static(path.join(__dirname, '..', 'Client', 'static')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -27,6 +27,7 @@ app.set('trust proxy', 1);
 app.use(session({
     secret: crypto.generateKeySync('hmac', {length: 512}),        // A strong, random string for signing the session ID cookie
     resave: false,              // Don't save session if unmodified
+    saveUninitialized: false,
     rolling: true,              // Resets maxAge on each response
     cookie: { secure: PRDOUCTION, maxAge: 30 * 60000, httpOnly: true, sameSite: 'strict' } // Use secure cookies in production (requires HTTPS)
 }));
@@ -210,7 +211,7 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
     
     // store refreshToken to db
     if (response.refresh_token) {
-        const docRef = database.collection('users').doc(uid);
+        const docRef = await database.collection('users').doc(uid);
         const now = Date.now();
         const refreshTokenEncKey = (await secret.get('secrets')).refresh_token_encryption_key;
         const update = (data) => {
@@ -225,19 +226,18 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
             }
             return data;
         };
-        docRef.get().then(async doc => {
-            let data = {        // default for new registered users
-                email: email,
-                auth: { access_tokens: [], }, 
-                register_time: now, 
-                version: '1'
-            };
-            if (doc.exists) {
-                data = doc.data();
-                await revokeToken(data.auth.refresh_token);
-            }
-            return await docRef.set(update(data));
-        });
+        const docData = await docRef.data();
+        let data = {        // default for new registered users
+            email: email,
+            auth: { access_tokens: [], }, 
+            register_time: now, 
+            version: '1'
+        };
+        if (docData !== null) {
+            data = docData;
+            await revokeToken(data.auth.refresh_token);
+        }
+        await docRef.set(update(data));
     }
 
     res.redirect(307, '/index.html');
@@ -274,7 +274,7 @@ app.post('/api/v1/transaction', async (req, res) => {
     const transaction = req.body.transaction;
     if (!uid || !token || !transaction) 
         return res.sendStatus(400);
-    const doc = await database.collection('users').doc(uid).get();
+    const doc = await database.collection('users').doc(uid);
     if (!doc.exists)
         return res.sendStatus(403);
     const data = doc.data();
@@ -331,7 +331,7 @@ app.put('/api/v1/google_sheets', async (req, res) => {
     if (!uid || !spreadsheetId) {
         return res.sendStatus(400);
     }
-    const docRef = database.collection('users').doc(uid);
+    const docRef = await database.collection('users').doc(uid);
     await docRef.update({
         'googleSheets': {
             'spreadsheetId': spreadsheetId,
@@ -347,7 +347,9 @@ secret.init()
     admin.initializeApp({
         credential: admin.credential.cert((await secret.get('secrets')).service_account),
     });
-    database = admin.firestore();
+    database = await require("./db").init({
+        firebase_admin: admin,
+    });
 })
 .then(() => {
     app.listen(HOST.PORT, () => console.log(`Server running on ${HOST.URL}`))
