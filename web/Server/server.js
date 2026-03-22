@@ -4,7 +4,6 @@ const crypto = require('crypto');
 const path = require('path');
 const admin = require("firebase-admin");
 const { ApplicationsClient } = require('@google-cloud/appengine-admin').v1;
-const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 
@@ -13,23 +12,22 @@ const secret = require('./secrets');
 const {addRow} = require('./googleapis');
 
 let HOST = {
-    PROTOCOL: 'http',
-    HOSTNAME: 'localhost',
-    PORT: process.env.PORT ?? 5000,
-    ADDRESS: `localhost:${process.env.PORT ?? 5000}`
+    PORT: process.env.PORT,
 };
 
 const PRDOUCTION = process.env.NODE_ENV === 'production';
 
 const app = express();
-app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
+// app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
 app.use(express.static(path.join(__dirname, '..', 'Client', 'static')));
-app.use(bodyParser.json());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.set('trust proxy', 1);
 app.use(session({
     secret: crypto.generateKeySync('hmac', {length: 512}),        // A strong, random string for signing the session ID cookie
     resave: false,              // Don't save session if unmodified
+    saveUninitialized: false,
     rolling: true,              // Resets maxAge on each response
     cookie: { secure: PRDOUCTION, maxAge: 30 * 60000, httpOnly: true, sameSite: 'strict' } // Use secure cookies in production (requires HTTPS)
 }));
@@ -41,23 +39,17 @@ const INSECURE_KEY = crypto.generateKeySync('hmac', {length: 32});
 
 const appengineClient = new ApplicationsClient();
 async function getHostname() {
-    
-    if (!PRDOUCTION) {    // https://docs.cloud.google.com/appengine/docs/standard/nodejs/runtime
-        console.log('Host:', HOST);
+    HOST.URL = process.env.APP_URL;
+    if (HOST.URL)
         return;
-    }
     // https://cloud.google.com/appengine/docs/admin-api/reference/rest/v1beta/apps/get
     const projectId = process.env.GOOGLE_CLOUD_PROJECT ?? config.gcp.projectId;
     const [response] = await appengineClient.getApplication({
         name: `apps/${projectId}`
     });
-    console.log('app engine client response', response);
     if (response.servingStatus === 'SERVING') {
-        HOST.PROTOCOL = 'https';
-        HOST.HOSTNAME = response.defaultHostname;
-        HOST.ADDRESS = HOST.HOSTNAME;
+        HOST.URL = "https://" + HOST.HOSTNAME;
     }
-    console.log('Host:', HOST);
 }
 
 
@@ -162,7 +154,7 @@ async function getOauthRedirectUrl(req) {
     };
     const queryParams = new URLSearchParams({
         client_id: (await secret.get('secrets')).google_oauth.web.client_id,
-        redirect_uri: `${HOST.PROTOCOL}://${HOST.ADDRESS}${GOOGLE_OAUTH_REDIRECT_PATH}`,
+        redirect_uri: `${HOST.URL}${GOOGLE_OAUTH_REDIRECT_PATH}`,
         response_type: 'code',
         access_type: 'offline',     // also get refresh token
         scope: AUTH_SCOPES,
@@ -194,7 +186,7 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
         client_id: (await secret.get('secrets')).google_oauth.web.client_id,
         client_secret: (await secret.get('secrets')).google_oauth.web.client_secret,
         grant_type: 'authorization_code',
-        redirect_uri: `${HOST.PROTOCOL}://${HOST.ADDRESS}${GOOGLE_OAUTH_REDIRECT_PATH}`
+        redirect_uri: `${HOST.URL}${GOOGLE_OAUTH_REDIRECT_PATH}`
     });
     const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -219,7 +211,7 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
     
     // store refreshToken to db
     if (response.refresh_token) {
-        const docRef = database.collection('users').doc(uid);
+        const docRef = await database.collection('users').doc(uid);
         const now = Date.now();
         const refreshTokenEncKey = (await secret.get('secrets')).refresh_token_encryption_key;
         const update = (data) => {
@@ -234,19 +226,18 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
             }
             return data;
         };
-        docRef.get().then(async doc => {
-            let data = {        // default for new registered users
-                email: email,
-                auth: { access_tokens: [], }, 
-                register_time: now, 
-                version: '1'
-            };
-            if (doc.exists) {
-                data = doc.data();
-                await revokeToken(data.auth.refresh_token);
-            }
-            return await docRef.set(update(data));
-        });
+        const docData = await docRef.data();
+        let data = {        // default for new registered users
+            email: email,
+            auth: { access_tokens: [], }, 
+            register_time: now, 
+            version: '1'
+        };
+        if (docData !== null) {
+            data = docData;
+            await revokeToken(data.auth.refresh_token);
+        }
+        await docRef.set(update(data));
     }
 
     res.redirect(307, '/index.html');
@@ -283,7 +274,7 @@ app.post('/api/v1/transaction', async (req, res) => {
     const transaction = req.body.transaction;
     if (!uid || !token || !transaction) 
         return res.sendStatus(400);
-    const doc = await database.collection('users').doc(uid).get();
+    const doc = await database.collection('users').doc(uid);
     if (!doc.exists)
         return res.sendStatus(403);
     const data = doc.data();
@@ -340,7 +331,7 @@ app.put('/api/v1/google_sheets', async (req, res) => {
     if (!uid || !spreadsheetId) {
         return res.sendStatus(400);
     }
-    const docRef = database.collection('users').doc(uid);
+    const docRef = await database.collection('users').doc(uid);
     await docRef.update({
         'googleSheets': {
             'spreadsheetId': spreadsheetId,
@@ -356,10 +347,12 @@ secret.init()
     admin.initializeApp({
         credential: admin.credential.cert((await secret.get('secrets')).service_account),
     });
-    database = admin.firestore();
+    database = await require("./db").init({
+        firebase_admin: admin,
+    });
 })
 .then(() => {
-    app.listen(HOST.PORT, () => console.log(`Server running on ${HOST.PROTOCOL}://${HOST.ADDRESS}`))
+    app.listen(HOST.PORT, () => console.log(`Server running on ${HOST.URL}`))
 	.on('error', e => console.error('Error starting server:', e));
 });
 
