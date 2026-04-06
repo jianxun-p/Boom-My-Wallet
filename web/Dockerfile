@@ -14,7 +14,7 @@ FROM node:24-alpine
 WORKDIR /app
 COPY --from=build /app/package*.json ./
 RUN npm install --omit=dev
-COPY --from=build /app/Client/static ./Client/static
+COPY --from=build /app/Client/dist ./Client/dist
 COPY Server ./Server
 COPY boommywallet-config.json ./
 

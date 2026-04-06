@@ -61,10 +61,21 @@ gcloud app deploy
 
 Switch to the `web` directory.
 
-Copy `.env.example` to `.env`, and replace the value for `GCP_CREDENTIALS_JSON` with the JSON string for the Service Account Key.
+Copy `.env.example` to `.env`, and replace the values.
 
 
 ```bash
 docker compose up --build -d
+```
+
+### Develop
+
+Switch to the `web` directory.
+
+Copy `.env.example` to `.env`, and replace the values.
+
+```bash
+npm install
+npm run dev
 ```
 

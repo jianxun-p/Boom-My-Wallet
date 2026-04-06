@@ -1,9 +1,10 @@
 const {SecretManagerServiceClient} = require('@google-cloud/secret-manager');
 const path = require('path');
-const config = require(path.join(__dirname, '..', 'boommywallet-config.json'));
 
 let client = null;
 const cache = new Map();
+
+const gcpProjectId = process.env.GCP_PROJECT_ID;
 
 async function init() {
     if (process.env.GCP_CREDENTIALS_JSON) {
@@ -11,6 +12,9 @@ async function init() {
         client = new SecretManagerServiceClient({credentials});
     } else {
         client = new SecretManagerServiceClient();
+    }
+    if (!gcpProjectId) {
+        throw new Error('GCP_PROJECT_ID environment variable is not set');
     }
     console.log('Initialized secrets');
 }
@@ -25,7 +29,7 @@ async function get(secretName) {
         return val;
     }
     const [accessResponse] = await client.accessSecretVersion({
-        name: `projects/${config.gcp.projectId}/secrets/${secretName}/versions/latest`,
+        name: `projects/${gcpProjectId}/secrets/${secretName}/versions/latest`,
     });
     const val = JSON.parse(accessResponse.payload.data.toString('utf8'));
     cache.set(secretName, val);

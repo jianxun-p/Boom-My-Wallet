@@ -2,24 +2,25 @@ const express = require('express');
 const session = require('express-session');
 const crypto = require('crypto');
 const path = require('path');
-const admin = require("firebase-admin");
-const { ApplicationsClient } = require('@google-cloud/appengine-admin').v1;
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 
-const config = require(path.join(__dirname, '..', 'boommywallet-config.json'));
+const admin = require("firebase-admin");
+const { ApplicationsClient } = require('@google-cloud/appengine-admin').v1;
+
+
 const secret = require('./secrets');
 const {addRow} = require('./googleapis');
 
-let HOST = {
-    PORT: process.env.PORT,
+const HOST = {
+    PORT: 5000,     // default port, can be overridden by environment variable or inferred from APP_ORIGIN
 };
 
 const PRDOUCTION = process.env.NODE_ENV === 'production';
 
 const app = express();
 // app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
-app.use(express.static(path.join(__dirname, '..', 'Client', 'static')));
+app.use(express.static(path.join(__dirname, '..', 'Client', 'dist')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -38,21 +39,31 @@ const INSECURE_KEY = crypto.generateKeySync('hmac', {length: 32});
 
 
 async function getHostname() {
-    const appengineClient = process.env.GCP_CREDENTIALS_JSON ?
-        new ApplicationsClient({credentials: JSON.parse(process.env.GCP_CREDENTIALS_JSON)}) :
-        new ApplicationsClient();
-    HOST.URL = process.env.APP_URL;
-    if (HOST.URL)
-        return;
-    console.log('APP_URL not set, fetching hostname from App Engine API...');
-    // https://cloud.google.com/appengine/docs/admin-api/reference/rest/v1beta/apps/get
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT ?? config.gcp.projectId;
-    const [response] = await appengineClient.getApplication({
-        name: `apps/${projectId}`
-    });
-    if (response.servingStatus === 'SERVING') {
-        HOST.URL = "https://" + HOST.HOSTNAME;
+    HOST.ORIGIN = process.env.APP_ORIGIN;
+    if (!HOST.ORIGIN) {
+        console.log('APP_URL not set, fetching hostname from App Engine API...');
+        const appengineClient = process.env.GCP_CREDENTIALS_JSON ?
+            new ApplicationsClient({credentials: JSON.parse(process.env.GCP_CREDENTIALS_JSON)}) :
+            new ApplicationsClient();
+            // https://cloud.google.com/appengine/docs/admin-api/reference/rest/v1beta/apps/get
+        const projectId = process.env.GCP_PROJECT_ID;
+        if (!projectId) {
+            throw new Error('GCP_PROJECT_ID environment variable is not set');
+        }
+        const [response] = await appengineClient.getApplication({
+            name: `apps/${projectId}`
+        });
+        if (response.servingStatus === 'SERVING') {
+            HOST.ORIGIN = "https://" + response.defaultHostname;
+        }
     }
+
+    HOST.URL = URL.parse(process.env.APP_ORIGIN);
+    if (process.env.PORT) {
+        HOST.PORT = parseInt(process.env.PORT);
+    } else if (HOST.URL.port) {
+        HOST.PORT = parseInt(HOST.URL.port);
+    }    
 }
 
 
@@ -157,7 +168,7 @@ async function getOauthRedirectUrl(req) {
     };
     const queryParams = new URLSearchParams({
         client_id: (await secret.get('secrets')).google_oauth.web.client_id,
-        redirect_uri: `${HOST.URL}${GOOGLE_OAUTH_REDIRECT_PATH}`,
+        redirect_uri: `${HOST.URL.origin}${GOOGLE_OAUTH_REDIRECT_PATH}`,
         response_type: 'code',
         access_type: 'offline',     // also get refresh token
         scope: AUTH_SCOPES,
@@ -168,7 +179,7 @@ async function getOauthRedirectUrl(req) {
 }
 
 
-const GOOGLE_OAUTH_REDIRECT_PATH = config.google_oauth.redirect_url;
+const GOOGLE_OAUTH_REDIRECT_PATH = "/oauth/google/callback";
 app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
     if (req.query.error)
         return res.redirect(307, '/login?' + (new URLSearchParams(req.query)).toString());
@@ -189,7 +200,7 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
         client_id: (await secret.get('secrets')).google_oauth.web.client_id,
         client_secret: (await secret.get('secrets')).google_oauth.web.client_secret,
         grant_type: 'authorization_code',
-        redirect_uri: `${HOST.URL}${GOOGLE_OAUTH_REDIRECT_PATH}`
+        redirect_uri: `${HOST.URL.origin}${GOOGLE_OAUTH_REDIRECT_PATH}`
     });
     const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -353,13 +364,17 @@ secret.init()
         credential: admin.credential.cert(serviceAcnt),
     });
     console.log('Firebase Admin SDK initialized');
-    console.log('Initializing database...');
+})
+.then(async () => {
+    console.log(`Initializing database (DB_TYPE: ${process.env.DB_TYPE}) ...`);
     database = await require("./db").init({
         firebase_admin: admin,
     });
+    console.log('Database initialized');
 })
 .then(() => {
-    app.listen(HOST.PORT, () => console.log(`Server running on ${HOST.URL}`))
+    console.log('Starting server...');
+    app.listen(HOST.PORT, () => console.log(`Server running on ${HOST.URL.origin}`))
 	.on('error', e => console.error('Error starting server:', e));
 });
 

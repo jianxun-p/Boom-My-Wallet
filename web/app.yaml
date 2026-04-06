@@ -5,7 +5,9 @@ instance_class: F1
 env_variables:
   PORT: 8080
   NODE_ENV: production
-  APP_URL='https://boommywallet.shimaodexibao.dpdns.org'
+  GCP_PROJECT_ID: boommywallet
+  APP_ORIGIN: https://boommywallet.shimaodexibao.dpdns.org
+  DB_TYPE: firestore
 
 automatic_scaling:
   min_instances: 1

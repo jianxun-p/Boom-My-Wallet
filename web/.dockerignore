@@ -4,10 +4,11 @@ README.md
 .env.example
 
 .vscode
-
 .git
 .gitignore
 
 .gcloudignore
 app.yaml
+
+/web/Clinet/dist
 

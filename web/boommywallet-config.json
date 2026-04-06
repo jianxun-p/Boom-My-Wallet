@@ -1,9 +1,0 @@
-{
-    "gcp" : {
-        "projectName": "Boom-My-Wallet",
-        "projectId": "boommywallet"
-    },
-    "google_oauth": {
-        "redirect_url": "/oauth/google/callback"
-    }
-}

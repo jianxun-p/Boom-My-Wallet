@@ -14,7 +14,7 @@ export default defineConfig({
 	root: path.resolve(__dirname, 'Client', 'src'),
 	publicDir: path.resolve(__dirname, 'Client', 'src', 'public'),
 	build: {
-		outDir: path.resolve(__dirname, 'Client', 'static'), 
+		outDir: path.resolve(__dirname, 'Client', 'dist'), 
 		emptyOutDir: true, // Clears the dist folder before build
         rollupOptions: {
 			input: inputHtmls
@@ -27,5 +27,14 @@ export default defineConfig({
 				plugins: [['babel-plugin-react-compiler']],
 			},
 		}),
-	]
+	],
+	server: {
+		port: 5000,
+		proxy: {
+			'^/(api|oauth)': {
+				target: 'http://localhost:4000',
+				changeOrigin: true,
+			}
+		}
+	}
 });

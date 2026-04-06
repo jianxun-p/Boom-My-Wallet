@@ -13,7 +13,7 @@
 .git
 .gitignore
 
-Client/static/
+Client/dist/
 
 Dockerfile
 .dockerignore
