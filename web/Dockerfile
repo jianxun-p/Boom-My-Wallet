@@ -13,7 +13,7 @@ RUN npm run build
 FROM node:24-alpine
 WORKDIR /app
 COPY --from=build /app/package*.json ./
-COPY --from=build /app/node_modules ./node_modules
+RUN npm install --omit=dev
 COPY --from=build /app/Client/static ./Client/static
 COPY Server ./Server
 COPY boommywallet-config.json ./

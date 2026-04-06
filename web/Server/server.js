@@ -37,11 +37,14 @@ app.use(function(_req, res, next){ res.header('X-Frame-Options', 'DENY'); next()
 const INSECURE_KEY = crypto.generateKeySync('hmac', {length: 32});
 
 
-const appengineClient = new ApplicationsClient();
 async function getHostname() {
+    const appengineClient = process.env.GCP_CREDENTIALS_JSON ?
+        new ApplicationsClient({credentials: JSON.parse(process.env.GCP_CREDENTIALS_JSON)}) :
+        new ApplicationsClient();
     HOST.URL = process.env.APP_URL;
     if (HOST.URL)
         return;
+    console.log('APP_URL not set, fetching hostname from App Engine API...');
     // https://cloud.google.com/appengine/docs/admin-api/reference/rest/v1beta/apps/get
     const projectId = process.env.GOOGLE_CLOUD_PROJECT ?? config.gcp.projectId;
     const [response] = await appengineClient.getApplication({
@@ -344,9 +347,13 @@ app.put('/api/v1/google_sheets', async (req, res) => {
 secret.init()
 .then(getHostname)
 .then(async () => {
+    const serviceAcnt = (await secret.get('secrets')).service_account;
+    console.log('Initializing Firebase Admin SDK...');
     admin.initializeApp({
-        credential: admin.credential.cert((await secret.get('secrets')).service_account),
+        credential: admin.credential.cert(serviceAcnt),
     });
+    console.log('Firebase Admin SDK initialized');
+    console.log('Initializing database...');
     database = await require("./db").init({
         firebase_admin: admin,
     });
