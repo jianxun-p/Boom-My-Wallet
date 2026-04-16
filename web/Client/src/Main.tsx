@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState, type Dispatch, type SetStateAction, type ReactNode } from 'react';
+import { StrictMode, useEffect, useState, type Dispatch, type SetStateAction, type ReactNode, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import "/style.css";
 import * as googleDrive from "./google-drive";
@@ -44,20 +44,24 @@ interface State<T> {
 interface AppData {
     page: State<string>,
     accessToken: State<string>,
-    spreadsheet: State<Spreadsheet | null>
+    spreadsheet: State<Spreadsheet | null>,
+    uid: State<string>
 }
 
 export function Content(data: AppData) {
     if (data.page.get === 'Transactions') {
         return (
             <div className='content-wrapper'>
-                <Details spreadsheet={data.spreadsheet} accessToken={data.accessToken.get} />
+                <Details 
+                    spreadsheet={data.spreadsheet} 
+                    accessToken={data.accessToken.get} 
+                />
             </div>
         );
     } else if (data.page.get === 'Settings') {
         return (
             <div className='content-wrapper'>
-                <Settings />
+                <Settings uid={data.uid.get} />
             </div>
         );
     } else if (data.page.get === 'Home') {
@@ -78,7 +82,11 @@ export function App() {
     const [page, setPage] = useState('Home');
     const [spreadsheet, setSpreadsheet] = useState<Spreadsheet | null>(null);
     const [accessToken, setAccessToken] = useState<string>("");
-    useEffect(() => {
+    const [uid, setUid] = useState<string>("");
+    const hasFetchedData = useRef(false);
+
+
+    const fetchSpreadsheetData = (uid: string) => {
         fetch('/oauth/google/access_token')
         .then(res => res.json())
         .then(data => {
@@ -87,15 +95,32 @@ export function App() {
             setAccessToken(data.access_token); 
             return data.access_token;
         })
-        .then(accessToken => googleDrive.initSpreadsheet(accessToken))
+        .then(accessToken => googleDrive.initSpreadsheet(uid, accessToken))
         .then(spreadsheet => { 
             if (spreadsheet) setSpreadsheet(spreadsheet);
         });
+    };
+
+    useEffect(() => {
+        if (hasFetchedData.current)
+            return;
+
+        fetch('/oauth/user')
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) 
+                window.location.href = '/login.html';
+            setUid(data.uid.toString()); 
+            return data.uid.toString();
+        }).then(fetchSpreadsheetData);
+        
+        hasFetchedData.current = true;
     }, []);
     const data = {
         page: { get: page, set: setPage },
         accessToken: { get: accessToken, set: setAccessToken },
-        spreadsheet: { get: spreadsheet, set: setSpreadsheet }
+        spreadsheet: { get: spreadsheet, set: setSpreadsheet },
+        uid: {get: uid, set: setUid }
     };
     return <>
         <MenuBar setPage={setPage} />

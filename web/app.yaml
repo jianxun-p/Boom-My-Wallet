@@ -6,7 +6,6 @@ env_variables:
   PORT: 8080
   NODE_ENV: production
   GCP_PROJECT_ID: boommywallet
-  APP_ORIGIN: https://boommywallet.shimaodexibao.dpdns.org
   DB_TYPE: firestore
 
 automatic_scaling:
@@ -16,15 +15,12 @@ automatic_scaling:
 
 handlers:
 - url: /assets
-  static_dir: Client/static/assets
+  static_dir: Client/dist/assets
   secure: always
+  http_headers:
+    X-Frame-Options: DENY
 
-# 2. Handle the static HTML files (like login.html)
-- url: /static
-  static_dir: Client/static
-  secure: always
-
-# 3. Fallback to your Node.js server for everything else
+# Fallback to your Node.js server for everything else
 - url: /.*
   script: auto
   secure: always

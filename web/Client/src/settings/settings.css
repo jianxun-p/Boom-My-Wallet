@@ -56,6 +56,19 @@
     .settings-content{
         @apply w-full;
     }
+    .settings-section-header {
+        @apply flex items-center justify-between;
+    }
+    .settings-add-button {
+        @apply rounded-xl bg-chart-4 text-secondary-foreground px-4 py-2 mr-3 font-semibold
+        hover:cursor-pointer hover:bg-chart-4/80;
+    }
+    .settings-feedback {
+        @apply rounded-xl bg-amber-100/70 text-black p-2 mb-2 break-all;
+    }
+    .settings-error {
+        @apply rounded-xl bg-destructive/20 text-destructive p-2 mb-2;
+    }
     .settings-header-row {
         @apply 
         w-full p-2
@@ -75,5 +88,15 @@
     }
     .settings-item-value {
         @apply col-span-3;
+    }
+    .settings-context-menu {
+        @apply fixed z-50 rounded-lg bg-card p-1 shadow-2xl border border-border;
+    }
+    .settings-context-menu-delete {
+        @apply rounded-md bg-destructive text-destructive-foreground px-3 py-2 text-sm font-semibold
+        hover:cursor-pointer hover:bg-destructive/80;
+    }
+    .settings-context-menu-backdrop {
+        @apply fixed inset-0 z-40;
     }
 }

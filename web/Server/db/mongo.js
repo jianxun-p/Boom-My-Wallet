@@ -23,6 +23,14 @@ class DocRef {
         return await this.collection.deleteOne({ _id: this.id });
     }
 
+    async exists() {
+        return 0 < await collection.countDocuments({ _id: this.id }, { limit: 1 });
+    }
+
+    async docByField(field, value) {
+        return await this.collection.findOne({ [field]: value });
+    }
+
 }
 
 class Collection {
