@@ -17,8 +17,18 @@ class UnAuthError extends AppError {
     }
 }
 
+class MissingArgError extends AppError {
+    constructor(paramName) {
+        super(`Missing value for the parameter ${paramName}.`, 400);
+        this.name = this.constructor.name;
+        
+        Error.captureStackTrace(this, this.constructor);    // limits stack trace to exclude this constructor
+    }
+}
+
 
 module.exports = {
     AppError,
     UnAuthError,
+    MissingArgError,
 };
