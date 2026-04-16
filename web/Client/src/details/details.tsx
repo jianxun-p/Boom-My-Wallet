@@ -2,29 +2,17 @@ import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'r
 import { useEffect } from 'react';
 import { deleteRow, updateValues } from '../google-drive';
 import { rangeA1 } from '../google-drive';
-import { type Spreadsheet } from '../google-drive';
+import { type Spreadsheet, Transaction } from '../google-drive';
 import './details.css';
 import { Footer } from '../footer';
 
 const TRANSACTION_SHEET_NAME = 'transactions';
 
-interface Transaction {
-    row: number,
-    time: Date,
-    amount: string,
-    currency: string,
-    category: string,
-    name: string,
-    merchant: string,
-    paymentMethod: string,
-    location: string,
-    position: string,
-    description: string,
-};
-type TransactionStringField = 'amount' | 'currency' | 'category' | 'name' | 'merchant' | 'paymentMethod' | 'location' | 'position' | 'description';
 
 function newEmptyTransaction(row?: number): Transaction {
-    return { row: row ?? -1, time: new Date(), amount: '0', currency: '', category: '', name: '', merchant: '', paymentMethod: '', location: '', position: '', description: '', };
+    const t = new Transaction();
+    t.row = row ?? -1;
+    return t;
 }
 
 function cloneTransaction(transaction: Transaction | null): Transaction {
@@ -240,9 +228,12 @@ function DetailModal(
             return a;
         });
     };
+    type TransactionStringField = {
+        [K in keyof Transaction]: Transaction[K] extends string ? K : never
+    }[keyof Transaction];
     const setTransactionFieldHandler = (fieldName: TransactionStringField) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         props.transaction.set((prev: Transaction | null) => {
-            const newTran = cloneTransaction(prev);
+            const newTran: Transaction = cloneTransaction(prev);
             newTran[fieldName] = e.target.value;
             return newTran;
         });
@@ -357,33 +348,20 @@ function ConnectGoogleSheets() {
     </>;
 }
 
-export default function Details({spreadsheet, accessToken}: {spreadsheet: State<Spreadsheet | null>, accessToken: string}) {
+export default function Details(
+    {spreadsheet, accessToken}: {spreadsheet: State<Spreadsheet | null>, accessToken: string}
+) {
     const [transactionsByMonth, setTransactionsByMonth] = useState<Transaction[][]>([]);
-    if (!spreadsheet.get)
-        return <ConnectGoogleSheets />;
-
+    
     const transactionSheet = useMemo(
-        () => spreadsheet.get?.sheets.filter(sheet => sheet.name === TRANSACTION_SHEET_NAME)[0] ?? {name: TRANSACTION_SHEET_NAME, columns: [], values: []}, 
-        [spreadsheet.get.sheets]
+        () => (spreadsheet.get?.sheets ?? []).filter(sheet => sheet.name === TRANSACTION_SHEET_NAME)[0] ?? {name: TRANSACTION_SHEET_NAME, columns: [], values: []}, 
+        [spreadsheet.get?.sheets]
     );
     const [categories, setCategories] = useState<string[]>([]);
     const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
     useEffect(() => {
-        const columnIndex = new Map(transactionSheet.columns.map((column, i) => [column, i]));
         const t = transactionSheet.values.map((row, rowI) => {
-            return {
-                row: rowI,
-                time: new Date(row[columnIndex.get('Time') ?? -1]),
-                amount: (row[columnIndex.get('Amount') ?? -1] ?? '').toString(),
-                currency: (row[columnIndex.get('Currency') ?? -1] ?? '').toString(),
-                category: (row[columnIndex.get('Category') ?? -1] ?? '').toString(),
-                name: (row[columnIndex.get('Name') ?? -1] ?? '').toString(),
-                merchant: (row[columnIndex.get('Merchant') ?? -1] ?? '').toString(),
-                paymentMethod: (row[columnIndex.get('PaymentMethod') ?? -1] ?? '').toString(),
-                location: (row[columnIndex.get('Location') ?? -1] ?? '').toString(),
-                position: (row[columnIndex.get('Latitude') ?? -1] ?? '').toString() + ', ' + (row[columnIndex.get('Longitude') ?? -1] ?? '').toString(),
-                description: (row[columnIndex.get('Description') ?? -1] ?? '').toString(),
-            };
+            return new Transaction(row, rowI);
         }).sort((a, b) => b.time.valueOf() - a.time.valueOf());     // most recent to oldest
         setCategories([...(new Set(t.map(tran => tran.category))).keys()]);
         setPaymentMethods([...(new Set(t.map(tran => tran.paymentMethod))).keys()]);
@@ -400,6 +378,9 @@ export default function Details({spreadsheet, accessToken}: {spreadsheet: State<
     }, [spreadsheet.get, setTransactionsByMonth, transactionSheet]);
 
     const [transactionDetail, setTransactionDetail] = useState<Transaction | null>(null);
+
+    if (!spreadsheet.get)
+        return <ConnectGoogleSheets />;
 
     return <>
         <DetailModal 

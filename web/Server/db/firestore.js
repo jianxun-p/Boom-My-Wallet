@@ -19,6 +19,10 @@ class DocRef {
         return await this.docRef.delete();
     }
 
+    async exists() {
+        return (await this.docRef.get()).exists;
+    }
+
 }
 
 class Collection {
@@ -28,6 +32,15 @@ class Collection {
 
     async doc(key) {
         return new DocRef(await this.collection.doc(key));
+    }
+
+    async docByField(field, value) {
+        const snapshot = await this.collection.where(field, '==', value).limit(1).get();
+        
+        if (snapshot.empty) {
+            return null;
+        }
+        return new DocRef(snapshot.docs[0].ref);
     }
 
 }

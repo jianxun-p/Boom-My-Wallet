@@ -12,7 +12,6 @@
   },
   "author": "panjianxun88@gmail.com",
   "dependencies": {
-    "@google-cloud/appengine-admin": "^4.2.1",
     "@google-cloud/firestore": "^7.11.6",
     "@google-cloud/secret-manager": "^6.1.1",
     "cookie-parser": "^1.4.7",

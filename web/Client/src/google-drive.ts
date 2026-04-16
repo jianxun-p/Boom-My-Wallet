@@ -6,19 +6,59 @@ export interface Worksheet {
     values: string[][],
 };
 
-export interface Transaction {
-    row: number,
-    time: Date,
-    amount: string,
-    currency: string,
-    category: string,
-    name: string,
-    merchant: string,
-    paymentMethod: string,
-    location: string,
-    position: string,
-    description: string,
+const SPREADSHEET_SCHEMA = {
+    "transactions": ["Time", "Amount", "Category", "Currency", "Name", "Merchant", "PaymentMethod", "Location", "Latitude", "Longitude", "Description", "Image"],
+    "budgets": ["Time", "Amount", "Category", "Name", "Merchant", "PaymentMethod", "Location", "Latitude", "Longitude", "Description"],
+    "general": ["Key", "Value"]
 };
+
+export class Transaction {
+    #_row: number = -1;
+    #_time: Date = new Date();
+    category: string = '';
+    amount: string = '';
+    currency: string = '';
+    name: string = '';
+    merchant: string = '';
+    paymentMethod: string = '';
+    location: string = '';
+    position: string = '';
+    description: string = '';
+    imageUrl: string | null = null;
+
+    set row(n: string | number) {
+        this.#_row = typeof n === 'string' ? parseInt(n) : n;
+    }
+    get row(): number {
+        return this.#_row;
+    }
+    set time(t: string | Date) {
+        this.#_time = new Date(t);
+    }
+    get time(): Date {
+        return this.#_time;
+    }
+
+
+    constructor(rowData?: string[], rowIndex?: number) {
+        this.row = rowIndex ?? -1;
+        if (!rowData)
+            return;
+        const TRANSACTION_KEYS: (keyof Transaction)[] = [
+            'time', 'category', 'amount', 'currency', 
+            'name', 'merchant', 'paymentMethod', 
+            'location', 'position', 
+            'description', 'imageUrl'
+        ];
+        SPREADSHEET_SCHEMA['transactions'].forEach((_, i) => {
+            const key: keyof Transaction = TRANSACTION_KEYS[i];
+            if (rowData[i])
+                this[key] = rowData[i];
+        })
+              
+    }
+};
+
 
 export interface Spreadsheet {
     id: string,
@@ -26,11 +66,7 @@ export interface Spreadsheet {
     sheets: Worksheet[],
 };
 
-const SPREADSHEET_SCHEMA = {
-    "transactions": ["Time", "Amount", "Category", "Currency", "Name", "Merchant", "PaymentMethod", "Location", "Latitude", "Longitude", "Description"],
-    "budgets": ["Time", "Amount", "Category", "Name", "Merchant", "PaymentMethod", "Location", "Latitude", "Longitude", "Description"],
-    "general": ["Key", "Value"]
-};
+
 
 /**
  * @see https://developers.google.com/workspace/drive/api/reference/rest/v3/files/list
@@ -242,33 +278,33 @@ export async function deleteRow(accessToken: string, spreadsheetId: string, work
     .then(res => res.json());
 }
 
-async function updateGoogleSheetsInfo(spreadsheetId: string, folderId: string | null) {
+async function updateGoogleSheetsInfo(uid: string, spreadsheetId: string, folderId: string | null = null) {
     const q = new URLSearchParams({
         'spreadsheetId': spreadsheetId,
     });
     if (folderId) {
         q.set('folderId', folderId);
     }
-    return await fetch(`/api/v1/google_sheets?${q.toString()}`, {
+    return await fetch(`/api/v1/users/${encodeURIComponent(uid)}/google_sheets?${q.toString()}`, {
         method: 'PUT',
     });
 }
 
-export async function initSpreadsheet(accessToken: string): Promise<Spreadsheet | null> {
+export async function initSpreadsheet(uid: string, accessToken: string): Promise<Spreadsheet | null> {
     const files = await listFiles(accessToken);
     if (!files.files) {
         console.error("Failed fetching files:", files.error);
         return null;
     }
-    let folder = files.files.filter((f: null | {mimeType:string}) => f?.mimeType === "application/vnd.google-apps.folder")[0];
-    if (!folder) folder = await createFolder(accessToken);
-    if (!folder?.id) {
-        console.error("Failed creating folder:", folder.error);
-        return null;
-    }
-    const folderChildren = await listFiles(accessToken, folder.id);
-    let existingSpreadsheet = folderChildren.files.filter((f: null | {mimeType:string}) => f?.mimeType === "application/vnd.google-apps.spreadsheet")[0];
-    if (!existingSpreadsheet) existingSpreadsheet = await createSpreadsheetFile(accessToken, folder.id);
+    // let folder = files.files.filter((f: null | {mimeType:string}) => f?.mimeType === "application/vnd.google-apps.folder")[0];
+    // if (!folder) folder = await createFolder(accessToken);
+    // if (!folder?.id) {
+    //     console.error("Failed creating folder:", folder.error);
+    //     return null;
+    // }
+    // const folderChildren = await listFiles(accessToken);
+    let existingSpreadsheet = files.files.filter((f: null | {mimeType:string}) => f?.mimeType === "application/vnd.google-apps.spreadsheet")[0];
+    if (!existingSpreadsheet) existingSpreadsheet = await createSpreadsheetFile(accessToken);
     if (!existingSpreadsheet?.id) {
         console.error("Failed creating spreadsheet:", existingSpreadsheet.error);
         return null;
@@ -280,7 +316,7 @@ export async function initSpreadsheet(accessToken: string): Promise<Spreadsheet 
     }
     const worksheets: Worksheet[] = [];
     const promises = [];
-    promises.push(updateGoogleSheetsInfo(spreadsheet.spreadsheetId, folder.id));
+    promises.push(updateGoogleSheetsInfo(uid, spreadsheet.spreadsheetId));
     const worksheetIdMap = new Map<string, number>();
     for (const [sheetname, columns] of Object.entries(SPREADSHEET_SCHEMA)) {
         const sheet = (spreadsheet.sheets ?? []).filter((s: null | {properties?:{title?:string}}) => s?.properties?.title === sheetname)[0];
