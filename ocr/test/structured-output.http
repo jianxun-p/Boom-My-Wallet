@@ -1,0 +1,94 @@
+POST http://localhost:8080/v1/chat/completions
+Content-Type: application/json
+
+{                                 
+    "messages": [
+        {"role": "system", "content": "Summarize the transaction."},
+        {"role": "user", "content": "EPIC STEAKHOUSE\n369 THE EMBARCADERO\nSAN FRANCISCO, CA 94105\nRECEIPT\n2 FILET MIGNON $98.00\n1 RIB EYE $52.00\n1 CAESAR SALAD $14.50\n1 CREAMED SPINACH $11.00\n1 BAKED POTATO $9.50\nSUBTOTAL $185.00\nTAX 17.02\nTIP $75.00\nTOTAL $277.02"}
+    ],
+    "temperature": 0,
+    "response_format": {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "TransactionItem",
+            "strict": true,
+            "description": "describes a transaction",
+            "schema": {
+                "name": "TransactionItem",
+                "type": "object",
+                "required": ["total", "currency", "description"],
+                "properties": {
+                    "total": {
+                        "type": "number",
+                        "description": "The total amount of the transaction.",
+                        "minimum": 0
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "The ISO currency code (e.g., USD, EUR).",
+                        "minLength": 3,
+                        "maxLength": 3,
+                        "pattern": "^[A-Z]{3}$"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "A brief summary of the transaction."
+                    }
+                },
+                "additionalProperties": false
+            }
+        }
+        
+    }
+}
+
+###
+
+POST http://localhost:8080/v1/responses
+Content-Type: application/json
+
+{       
+    "instructions": "You are an AI agent that summarize the given transaction.",                          
+    "input": [
+        {"role": "user", "content": "EPIC STEAKHOUSE\n369 THE EMBARCADERO\nSAN FRANCISCO, CA 94105\nRECEIPT\n2 FILET MIGNON $98.00\n1 RIB EYE $52.00\n1 CAESAR SALAD $14.50\n1 CREAMED SPINACH $11.00\n1 BAKED POTATO $9.50\nSUBTOTAL $185.00\nTAX 17.02\nTIP $75.00\nTOTAL $277.02"}
+    ],
+    "temperature": 0,
+    "response_format": {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "TransactionItem",
+            "strict": true,
+            "description": "describes a transaction",
+            "schema": {
+                "name": "TransactionItem",
+                "type": "object",
+                "required": ["total", "currency", "description", "location"],
+                "properties": {
+                    "total": {
+                        "type": "number",
+                        "description": "The total amount of the transaction.",
+                        "minimum": 0
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "The ISO currency code (e.g., USD, EUR).",
+                        "minLength": 3,
+                        "maxLength": 3,
+                        "pattern": "^[A-Z]{3}$"
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "Physical location."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "A brief summary of the transaction (one sentence)."
+                    }
+                },
+                "additionalProperties": false
+            }
+        }
+        
+    }
+}
+

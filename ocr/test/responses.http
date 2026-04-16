@@ -1,0 +1,23 @@
+POST http://localhost:8080/v1/responses
+Content-Type: application/json
+
+{
+    "input": [
+        {"role": "system", "content": "You are a helpful chat assistant."},
+        {"role": "user", "content": "Hello!"}
+    ],
+    "temperature": 2
+}
+
+###
+
+POST http://localhost:8080/v1/responses
+Content-Type: application/json
+
+{
+    "instructions": "You are a helpful assistant.",
+    "input": [
+        {"role": "user", "content": "Hello!"}
+    ],
+    "temperature": 0
+}
