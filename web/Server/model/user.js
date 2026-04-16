@@ -1,3 +1,4 @@
+const { UnAuthError, AppError } = require('../apperror');
 const { database } = require('../db');
 const { ApiKey } = require('./apikey');
 
@@ -31,7 +32,7 @@ class User {
             console.log("User registered with uid:", data.uid);
         }).catch(e => {
             console.error("Failed registering user:", e);
-            throw new Error("Failed registering user: " + e.message);
+            throw new AppError("Failed to register user.");
         });
         const user = new User();
         user.init(data.uid, auth, docRef);
@@ -41,7 +42,7 @@ class User {
     static async getByUid(uid) {
         const docRef = await database().collection(COLLETCTION).doc(uid);
         if (!docRef) {
-            throw new Error("User not found");
+            throw new UnAuthError();
         }
         const docData = await docRef.data();
         const auth = await getAuthInstances(docData.auth ?? {});
@@ -67,14 +68,17 @@ class User {
     static async apiCall(uid, req) {
         const docRef = await database().collection(COLLETCTION).doc(uid);
         if (!docRef) {
-            throw new Error("Invalid uid");
+            throw new UnAuthError();
         }
         const docData = await docRef.data();
+        if (!docData) {
+            throw new UnAuthError();
+        }
         if (!req.session.user?.uid) {
             const apikey = req.headers['authorization'].replace(/^Bearer /g, '');
             const apiKeyObj = ApiKey.findApiKeys(apikey, docData.apikeys);
             if (!apiKeyObj) {
-                throw new Error("Invalid API key");
+                throw new UnAuthError();
             }
         }
         const auth = await getAuthInstances(docData.auth ?? {});
@@ -84,7 +88,8 @@ class User {
     }
 
     async updateAuth(authData, authSource = null) {
-        const docData = await this.docRef.data();
+        const docRef = await database().collection(COLLETCTION).doc(this.uid);
+        const docData = await docRef.data();
         
         this.data = Object.assign({        // default for new registered users
             apikeys: [],
@@ -100,7 +105,10 @@ class User {
                 this.data.auth[authSource] = this.auth[authSource].updateAuthData(authData);
             }
         }
-        await this.docRef.set(this.data);
+        await docRef.set(this.data).catch(e => {
+            console.error("Failed updating user auth data:", e);
+            throw new AppError("Failed updating user authentication information.");
+        });
     }
 
 }

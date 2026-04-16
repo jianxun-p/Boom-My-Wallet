@@ -225,7 +225,7 @@ class GoogleAuth extends Auth {
         ).then(res => {
             if (res.error) {
                 console.error("Failed adding row to Google Sheets:", res.error);
-                throw new Error("Failed adding row to Google Sheets:" + res.error.message);
+                throw new AppError("Failed adding row to Google Sheets.");
             }
             return res;
         });

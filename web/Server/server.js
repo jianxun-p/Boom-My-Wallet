@@ -11,13 +11,14 @@ const auth = require('./model/auth');
 const db = require('./db');
 const secret = require('./secrets');
 const { ApiKey } = require('./model/apikey');
+const { AppError, UnAuthError, MissingArgError } = require('./apperror');
 
 const PRDOUCTION = process.env.NODE_ENV === 'production';
 const PORT = process.env.PORT ?? 5000;
 
 const app = express();
 // app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
-app.use(express.static(path.join(__dirname, '..', 'Client', 'dist')));
+// app.use(express.static(path.join(__dirname, '..', 'Client', 'dist')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 // app.use(cookieParser());
@@ -36,12 +37,12 @@ app.get('/', (_req, res) => {
 });
 
 const GOOGLE_OAUTH_REDIRECT_PATH = "/oauth/google/callback";
-app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
+app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res, next) => {
     if (req.query.error)
         return res.redirect(307, '/login?' + (new URLSearchParams(req.query)).toString());
     const redirect_uri = auth.verifyOauthState(req);
     if (!redirect_uri) {
-        return res.sendStatus(401);
+        return next(new UnAuthError('Login Failed.'));
     }
     const body = new URLSearchParams({
         code: req.query.code,
@@ -60,7 +61,7 @@ app.get(GOOGLE_OAUTH_REDIRECT_PATH, async (req, res) => {
     const authId = id_token?.sub;
     if (!authId) {
         console.warn('bad response (missing sub in payload of response.id_token):', response);
-        return res.sendStatus(401);
+        return next(new UnAuthError('Login Failed.'));
     }
     
     req.session.user = await User.login('google', authId).catch(e => console.error('Failed creating user instance:', e));
@@ -72,7 +73,7 @@ app.get('/oauth/google/access_token', (req, res) => {
     const accessToken = req.session.user?.auth?.google?.accessToken;
     const accessTokenExpiry = req.session.user?.auth?.google?.accessTokenExpiry ?? 0;
     if (!accessToken || Date.now() >= accessTokenExpiry) {
-        return res.status(401).json({ error: { message: "Unauthorized" } });
+        return next(new UnAuthError('Access token is missing or expired. Please log in again.'));
     }
     return res.json({ access_token: accessToken });
 });
@@ -82,10 +83,10 @@ app.get('/oauth/google/login', async (req, res) => {
     res.redirect(307, authUri);
 });
 
-app.get('/oauth/user', async (req, res) => {
+app.get('/oauth/user', async (req, res, next) => {
     const uid = req.session.user?.uid;
     if (!uid) {
-        return res.status(401).json({ error: { message: "Unauthorized" } });
+        return next(new UnAuthError());
     }
     const user = {
         uid: uid,
@@ -93,19 +94,20 @@ app.get('/oauth/user', async (req, res) => {
     res.json(user);
 });
 
-app.get('/api/v1/users/:uid/apikey/list', async (req, res) => {
-    const uid = req.params.uid ?? req.session.user?.uid;
-    if (!uid) {
-        return res.status(400).json({ error: { message: "uid is required" } });
-    }
-   
-    let docRef = null;
-    try {
-        docRef = (await User.apiCall(uid, req)).docRef;
-    } catch (e) {
-        console.error('Failed authenticating API call:', e);
-        return res.sendStatus(403);
-    }
+app.use('/api', (_req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'PUT, POST, GET, OPTIONS, DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+});
+
+app.use('/api/v1/users/:uid', async (req, res, next) => {
+    res.locals.user = await User.apiCall(req.params.uid, req);
+    next();
+});
+
+app.get('/api/v1/users/:uid/apikey/list', async (req, res) => {   
+    let docRef = res.locals.user.docRef;
     const keys = (await docRef.data()).apikeys ?? [];
 
     res.status(200).json({
@@ -113,25 +115,15 @@ app.get('/api/v1/users/:uid/apikey/list', async (req, res) => {
     });
 });
 
-app.post('/api/v1/users/:uid/apikey', async (req, res) => {
-    const uid = req.params.uid ?? req.session.user?.uid;
-    if (!uid) {
-        return res.status(400).json({ error: { message: "uid is required" } });
-    }
+app.post('/api/v1/users/:uid/apikey', async (req, res, next) => {
     const name = (req.body?.name ?? '').toString().trim();
     if (!name) {
-        return res.status(400).json({ error: { message: "name is required" } });
+        return next(new MissingArgError('name'));
     }
-    let docRef = null;
-    try {
-        docRef = (await User.apiCall(uid, req)).docRef;
-    } catch (e) {
-        console.error('Failed authenticating API call:', e);
-        return res.sendStatus(403);
-    }
+    let docRef = res.locals.user.docRef;
     const existingApikeys = (await docRef.data()).apikeys ?? [];
     if (existingApikeys.find(k => k.name === name)) {
-        return res.status(400).json({ error: { message: "API key with the same name already exists" } });
+        return next(new AppError('API key with the same name already exists', 400));
     }
     if (req.session.user?.uid) {
         req.session.user.apikeys = existingApikeys;
@@ -139,7 +131,7 @@ app.post('/api/v1/users/:uid/apikey', async (req, res) => {
     const newkey = ApiKey.new(name);
     const oldApikeys = [...existingApikeys];
     existingApikeys.push(newkey.object);
-    await (await db.database().collection('users').doc(uid)).update({
+    await docRef.update({
         apikeys: existingApikeys,
     }).then(() => {
         res.status(200).json({
@@ -155,31 +147,19 @@ app.post('/api/v1/users/:uid/apikey', async (req, res) => {
         if (req.session.user?.uid) {
             req.session.user.apikeys = oldApikeys;     // rollback in session
         }
-        res.status(500).json({ error: { message: "Failed creating API key: " + e.message } });
+        return next(new AppError("Failed creating API key."));
     });
 });
 
-app.delete('/api/v1/users/:uid/apikey/:name', async (req, res) => {
-    const uid = req.params.uid ?? req.session.user?.uid;
+app.delete('/api/v1/users/:uid/apikey/:name', async (req, res, next) => {
     const name = (req.params.name ?? '').toString().trim();
-    if (!uid) {
-        return res.status(400).json({ error: { message: "uid is required" } });
-    } else if (!name) {
-        return res.status(400).json({ error: { message: "name is required" } });
-    }
 
-    let docRef = null;
-    try {
-        docRef = (await User.apiCall(uid, req)).docRef;
-    } catch (e) {
-        console.error('Failed authenticating API call:', e);
-        return res.sendStatus(403);
-    }
+    let docRef = res.locals.user.docRef;
 
     const oldApikeys = (await docRef.data()).apikeys ?? [];
     const newApikeys = oldApikeys.filter(k => (k.name ?? null) !== name);
     if (newApikeys.length === oldApikeys.length) {
-        return res.status(404).json({ error: { message: "API key not found" } });
+        return next(new AppError('API key not found', 404));
     }
 
     await docRef.update({
@@ -187,25 +167,17 @@ app.delete('/api/v1/users/:uid/apikey/:name', async (req, res) => {
     }).then(() => {
         res.status(200).json({ message: "API key deleted" });
     }).catch(e => {
-        console.error("Failed deleting API key:", e);
         req.session.user.apikeys = oldApikeys;     // rollback in session
-        res.status(500).json({ error: { message: "Failed deleting API key: " + e.message } });
+        return next(e);
     });
 });
 
-app.post('/api/v1/users/:uid/transaction', async (req, res) => {
-    const uid = req.params.uid ?? req.session.user?.uid;
+app.post('/api/v1/users/:uid/transaction', async (req, res, next) => {
     const transaction = req.body.transaction;
     if (!transaction) 
-        return res.sendStatus(400);
+        return next(new MissingArgError('transaction'));
 
-    let user = null;
-    try {
-        user = await User.apiCall(uid, req);
-    } catch (e) {
-        console.error('Failed authenticating API call:', e);
-        return res.sendStatus(403);
-    }
+    let user = res.locals.user;
     const row = [
         (transaction.time ? new Date(transaction.time) : new Date()).toString(), 
         (transaction.amount ?? "").replace(/[^0-9.-]/g, ''), 
@@ -223,8 +195,16 @@ app.post('/api/v1/users/:uid/transaction', async (req, res) => {
     
     const promises = [];
     const errors = [];
+    const failedAuthSources = [];
     for (const auth in user.auth) {
-        promises.push(user.auth[auth].addRow(row).catch(e => errors.push(e)));
+        promises.push(
+            user.auth[auth]
+            .addRow(row)
+            .catch(e => {
+                errors.push(e)
+                failedAuthSources.push(auth);
+            })
+        );
     }
     await Promise.all(promises);
 
@@ -232,27 +212,29 @@ app.post('/api/v1/users/:uid/transaction', async (req, res) => {
         return res.sendStatus(200);
     const errorMsg = errors.map(e => e.message).join('; ');
     console.error("Errors adding row:", errorMsg);
-    return res.status(500).send(errorMsg);
-    
+    return next(new AppError(`Failed adding transaction to: ${failedAuthSources.join(', ')}.`));
 });
 
-app.put('/api/v1/users/:uid/google_sheets', async (req, res) => {
-    const uid = req.params.uid ?? req.session.user.uid;
+app.put('/api/v1/users/:uid/google_sheets', async (req, res, next) => {
     const spreadsheetId = req.query.spreadsheetId;
     if (!spreadsheetId) {
-        return res.sendStatus(400);
+        return next(new MissingArgError('spreadsheetId'));
     }
-    let docRef = null;
-    try {
-        docRef = (await User.apiCall(uid, req)).docRef;
-    } catch (e) {
-        console.error('Failed authenticating API call:', e);
-        return res.sendStatus(403);
-    }
+    let docRef = res.locals.user.docRef;
     await docRef.update({
         'auth.google.spreadsheetId': spreadsheetId,
     });
     return res.sendStatus(200);
+});
+
+
+app.use((err, _req, res, _next) => {
+    if (err instanceof AppError) {
+        console.warn('Unhandled AppError:', err);
+        return res.status(err.statusCode).json({ error: { message: err.message } });
+    }
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: { message: 'Internal Server Error.' } });
 });
 
 secret.init()
