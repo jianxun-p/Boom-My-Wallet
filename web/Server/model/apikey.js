@@ -32,7 +32,7 @@ class ApiKey {
     }
 
     static findApiKeys(apikey, apikeys = []) {
-        const keyBuf = crypto.hash("sha256", Buffer.from(apikey, ENCODING));       // TODO: check if it is contained in data breaches
+        const keyBuf = crypto.hash("sha256", Buffer.from(apikey ?? "", ENCODING));       // TODO: check if it is contained in data breaches
         const found = apikeys.find(at => {
             if (!at.hash || !at.salt)
                 return false;

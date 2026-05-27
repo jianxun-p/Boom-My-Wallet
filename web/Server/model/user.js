@@ -75,7 +75,7 @@ class User {
             throw new UnAuthError();
         }
         if (!req.session.user?.uid) {
-            const apikey = req.headers['authorization'].replace(/^Bearer /g, '');
+            const apikey = req.headers['authorization']?.replace(/^Bearer /g, '');
             const apiKeyObj = ApiKey.findApiKeys(apikey, docData.apikeys);
             if (!apiKeyObj) {
                 throw new UnAuthError();
