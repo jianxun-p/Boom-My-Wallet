@@ -7,7 +7,7 @@
     "dev:server": "export PORT=4000; node --env-file=.env --watch Server/server.js",
     "dev:client": "vite dev",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "start": "node --env-file=.env Server/server.js",
+    "start": "node Server/server.js",
     "build": "tsc -b && vite build"
   },
   "author": "panjianxun88@gmail.com",

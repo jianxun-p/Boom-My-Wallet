@@ -17,8 +17,9 @@ const PRDOUCTION = process.env.NODE_ENV === 'production';
 const PORT = process.env.PORT ?? 5000;
 
 const app = express();
+app.use(function(_req, res, next){ res.header('X-Frame-Options', 'DENY'); next(); });       // reject browser embedding page in other pages
 // app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
-// app.use(express.static(path.join(__dirname, '..', 'Client', 'dist')));
+app.use(express.static(path.join(__dirname, '..', 'Client', 'dist')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 // app.use(cookieParser());
@@ -30,7 +31,6 @@ app.use(session({
     rolling: true,              // Resets maxAge on each response
     cookie: { secure: PRDOUCTION, maxAge: 30 * 60000, httpOnly: true, sameSite: 'strict' } // Use secure cookies in production (requires HTTPS)
 }));
-app.use(function(_req, res, next){ res.header('X-Frame-Options', 'DENY'); next(); });       // reject browser embedding page in other pages
 
 app.get('/', (_req, res) => {
     res.redirect('/index.html');
@@ -111,6 +111,21 @@ app.get('/api/v1/users/:uid/apikey/list', async (req, res) => {
 
     res.status(200).json({
         apikeys: keys.map(k => { return { name: k.name, createdOn: k.createdOn }; }),
+    });
+});
+
+app.get('/api/v1/users/:uid/apikey/:name', async (req, res, next) => {
+    const name = (req.params.name ?? '').toString().trim();
+    let docRef = res.locals.user.docRef;
+    const key = (await docRef.data()).apikeys?.find(k => k.name === name);
+    if (!key) {
+        next(new AppError('API key not found', 404));
+    }
+    return res.status(200).json({
+        apikey: {
+            name: key.name,
+            createdOn: key.createdOn,
+        },
     });
 });
 
@@ -229,7 +244,6 @@ app.put('/api/v1/users/:uid/google_sheets', async (req, res, next) => {
 
 app.use((err, _req, res, _next) => {
     if (err instanceof AppError) {
-        console.warn('Unhandled AppError:', err);
         return res.status(err.statusCode).json({ error: { message: err.message } });
     }
     console.error('Unhandled error:', err);

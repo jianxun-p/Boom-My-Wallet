@@ -14,11 +14,7 @@ automatic_scaling:
   target_cpu_utilization: 0.95
 
 handlers:
-- url: /assets
-  static_dir: Client/dist/assets
-  secure: always
-  http_headers:
-    X-Frame-Options: DENY
+# For static handlers, the files must exists when the app is deployed, so we serve the built client files directly from the server's static directory.
 
 # Fallback to your Node.js server for everything else
 - url: /.*

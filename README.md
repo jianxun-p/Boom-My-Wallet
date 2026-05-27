@@ -50,6 +50,7 @@ Install the [Google Cloud CLI](https://docs.cloud.google.com/sdk/docs/install-sd
 Set up Google Cloud CLI (account, project, etc...).
 
 ```bash
+gcloud init
 gcloud auth application-default login
 ```
 
