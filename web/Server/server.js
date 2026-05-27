@@ -114,6 +114,21 @@ app.get('/api/v1/users/:uid/apikey/list', async (req, res) => {
     });
 });
 
+app.get('/api/v1/users/:uid/apikey/:name', async (req, res, next) => {
+    const name = (req.params.name ?? '').toString().trim();
+    let docRef = res.locals.user.docRef;
+    const key = (await docRef.data()).apikeys?.find(k => k.name === name);
+    if (!key) {
+        next(new AppError('API key not found', 404));
+    }
+    return res.status(200).json({
+        apikey: {
+            name: key.name,
+            createdOn: key.createdOn,
+        },
+    });
+});
+
 app.post('/api/v1/users/:uid/apikey', async (req, res, next) => {
     const name = (req.body?.name ?? '').toString().trim();
     if (!name) {
@@ -229,7 +244,6 @@ app.put('/api/v1/users/:uid/google_sheets', async (req, res, next) => {
 
 app.use((err, _req, res, _next) => {
     if (err instanceof AppError) {
-        console.warn('Unhandled AppError:', err);
         return res.status(err.statusCode).json({ error: { message: err.message } });
     }
     console.error('Unhandled error:', err);
