@@ -1,16 +1,16 @@
-const express = require('express');
-const session = require('express-session');
-const crypto = require('crypto');
-const path = require('path');
-const jwt = require('jsonwebtoken');
-const admin = require("firebase-admin");
+import express from 'express';
+import session from 'express-session';
+import crypto from 'crypto';
+import path from 'path';
+import * as jwt from 'jsonwebtoken';
+import admin from 'firebase-admin';
 
-const {User} = require('./model/user');
-const auth = require('./model/auth');
-const db = require('./db');
-const secret = require('./secrets');
-const { ApiKey } = require('./model/apikey');
-const { AppError, UnAuthError, MissingArgError } = require('./apperror');
+import { User } from './model/user.js';
+import * as auth from './utils/auth.js';
+import * as db from './repositories/db.js';
+import * as secret from './repositories/secrets.js';
+import { ApiKey } from './model/apikey.js';
+import { AppError, UnAuthError, MissingArgError } from './model/apperror.js';
 
 const PRODUCTION = process.env.NODE_ENV === 'production';
 const PORT = process.env.PORT ?? 4000;
@@ -20,7 +20,7 @@ const SESSION_SECRET = crypto.randomBytes(64).toString('hex');     // Generate a
 
 const app = express();
 app.use(function(_req, res, next){ res.header('X-Frame-Options', 'DENY'); next(); });       // reject browser embedding page in other pages
-app.use(express.static(path.join(__dirname, '..', 'Client', 'dist')));
+app.use(express.static(path.join(import.meta.dirname, '..', 'Client', 'dist')));
 if (process.env.NODE_ENV === 'development') {
     app.use(function(req, _res, next){ console.log(`[${new Date().toISOString()} ${req.ip} ${req.method} ${req.originalUrl.split('?')[0]}]`); next(); });     // logs
 }

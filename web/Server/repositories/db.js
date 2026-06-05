@@ -1,30 +1,25 @@
 
 let _db_requires = {};
 if (process.env.DB_TYPE === 'mongo') {
-    _db_requires = require('./db/mongo');
+    _db_requires = await import('./mongo.js');
 } else if (process.env.DB_TYPE === 'firestore') {
-    _db_requires = require('./db/firestore');
+    _db_requires = await import('./firestore.js');
 } else {
     throw new Error('Unsupported DB_TYPE: ' + process.env.DB_TYPE);
 }
 
 let _database = null;
 
-function database() {
+export function database() {
     if (!_database) {
         throw new Error('Database not initialized');
     }
     return _database;
 }
 
-async function _init(args) {
+export async function init(args) {
     console.log(`Initializing database (DB_TYPE: ${process.env.DB_TYPE}) ...`);
     _database = await _db_requires.init(args);
     console.log('Database initialized');
 }
 
-let _db_required = Object.assign({}, _db_requires);
-module.exports = Object.assign(_db_required, {
-    database,
-    init: _init,
-});

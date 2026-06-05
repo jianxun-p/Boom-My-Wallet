@@ -1,7 +1,7 @@
-const { MongoClient } = require('mongodb');
+import { MongoClient } from 'mongodb';
 
 
-class DocRef {
+export class DocRef {
     constructor(collection, id) {
         this.collection = collection;
         this.id = id;
@@ -33,7 +33,7 @@ class DocRef {
 
 }
 
-class Collection {
+export class Collection {
     constructor(collection) {
         this.collection = collection;
     }
@@ -44,7 +44,7 @@ class Collection {
 
 }
 
-class Database {
+export class Database {
     constructor(db) {
         this.db = db;
     }
@@ -57,7 +57,7 @@ class Database {
 
 let _mongo_client = null;
 
-async function init(args = null) {
+export async function init(args = null) {
 
     const name = args?.mongo_name ?? process.env.MONGO_USERNAME ?? 'admin';
     const password = args?.mongo_password ?? process.env.MONGO_PASSWORD ?? 'password';
@@ -70,10 +70,4 @@ async function init(args = null) {
     return new Database(_mongo_client.db(databaseName));
 }
 
-module.exports = {
-    init,
-    Database,
-    Collection,
-    DocRef,
-};
 

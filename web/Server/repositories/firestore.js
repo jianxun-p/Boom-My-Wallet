@@ -1,4 +1,4 @@
-class DocRef {
+export class DocRef {
     constructor(docRef) {
         this.docRef = docRef;
     }
@@ -25,7 +25,7 @@ class DocRef {
 
 }
 
-class Collection {
+export class Collection {
     constructor(collection) {
         this.collection = collection;
     }
@@ -45,7 +45,7 @@ class Collection {
 
 }
 
-class Database {
+export class Database {
     constructor(db) {
         this.db = db;
     }
@@ -55,14 +55,8 @@ class Database {
     }
 }
 
-async function init(args = null) {
+export async function init(args = null) {
     return new Database(args.firebase_admin.firestore());
 }
 
-module.exports = {
-    init,
-    Database,
-    Collection,
-    DocRef,
-};
 

@@ -34,7 +34,7 @@ function rangeA1(worksheetName, startCell, endCell) {
  * @param {string[]} row 
  * @returns 
  */
-async function addRow(accessToken, spreadsheetId, worksheetName, row) {
+export async function addRow(accessToken, spreadsheetId, worksheetName, row) {
     const range = rangeA1(worksheetName, [0, null], [row.length - 1, null]);
     return await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=RAW`, {
         method: "POST",
@@ -46,8 +46,4 @@ async function addRow(accessToken, spreadsheetId, worksheetName, row) {
         })
     })
     .then(res => res.json());
-}
-
-module.exports = {
-    addRow
 }

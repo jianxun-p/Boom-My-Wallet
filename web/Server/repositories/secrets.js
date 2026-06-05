@@ -1,12 +1,12 @@
-const {SecretManagerServiceClient} = require('@google-cloud/secret-manager');
-const path = require('path');
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+import * as path from 'path';
 
 let client = null;
 const cache = new Map();
 
 const gcpProjectId = process.env.GCP_PROJECT_ID;
 
-async function init() {
+export async function init() {
     if (process.env.GCP_CREDENTIALS_JSON) {
         const credentials = JSON.parse(process.env.GCP_CREDENTIALS_JSON);
         client = new SecretManagerServiceClient({credentials});
@@ -19,7 +19,7 @@ async function init() {
     console.log('Initialized secrets');
 }
 
-async function get(secretName) {
+export async function get(secretName) {
     const cachedVal = cache.get(secretName);
     if (cachedVal)  return cachedVal;
 
@@ -36,12 +36,7 @@ async function get(secretName) {
     return val;
 }
 
-async function clearCache() {
+export async function clearCache() {
     cache.clear();
 }
 
-module.exports = { 
-    init,
-    clearCache,
-    get
-};

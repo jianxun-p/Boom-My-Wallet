@@ -1,10 +1,10 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 const WORK_FACTOR = 64;
 const API_KEY_LENGTH = 64;
 const ENCODING = 'base64';
 
-class ApiKey {
+export class ApiKey {
 
     constructor(name, key) {
         this.name = name;
@@ -45,9 +45,3 @@ class ApiKey {
     }
 
 }
-
-
-
-module.exports = {
-    ApiKey,
-};

@@ -1,4 +1,4 @@
-class AppError extends Error {
+export class AppError extends Error {
     constructor(message, statusCode) {
         super(message);
         this.name = this.constructor.name;
@@ -8,7 +8,7 @@ class AppError extends Error {
     }
 }
 
-class UnAuthError extends AppError {
+export class UnAuthError extends AppError {
     constructor(message) {
         super(message ?? "Invalid Credentials.", 401);
         this.name = this.constructor.name;
@@ -17,7 +17,7 @@ class UnAuthError extends AppError {
     }
 }
 
-class MissingArgError extends AppError {
+export class MissingArgError extends AppError {
     constructor(paramName) {
         super(`Missing value for the parameter ${paramName}.`, 400);
         this.name = this.constructor.name;
@@ -27,8 +27,3 @@ class MissingArgError extends AppError {
 }
 
 
-module.exports = {
-    AppError,
-    UnAuthError,
-    MissingArgError,
-};

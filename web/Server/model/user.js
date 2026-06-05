@@ -1,14 +1,13 @@
-const { UnAuthError, AppError } = require('../apperror');
-const { database } = require('../db');
-const { ApiKey } = require('./apikey');
-const jwt = require('jsonwebtoken');
+import { AppError, UnAuthError } from './apperror.js';
+import * as database from '../repositories/db.js';
+import { ApiKey } from '../model/apikey.js';
+import * as jwt from 'jsonwebtoken';
 
-const { getAuthInstances } = require('./auth');
+import { getAuthInstances } from '../utils/auth.js';
 
 const COLLETCTION = 'users';
 
-
-class User {
+export class User {
     init(uid, auth, docRef) {
         this.uid = uid;
         this.auth = auth;
@@ -123,7 +122,3 @@ class User {
     }
 
 }
-
-module.exports = {
-    User,
-};

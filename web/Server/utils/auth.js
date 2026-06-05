@@ -6,17 +6,17 @@
  * It also interacts with Google's OAuth2 endpoints to manage tokens.
  */
 
-const secret = require('../secrets');
-const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
-const googleapis = require('../googleapis');
+import * as secret from '../repositories/secrets.js';
+import crypto from 'crypto';
+import * as jwt from 'jsonwebtoken';
+import * as googleapis from './googleapis.js';
 
 const TRANSACTIONS_WORKSHEET_NAME = 'transactions';
 
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const ENCODING = 'base64';
 
-const GOOGLE_OAUTH_REDIRECT_PATH = "/oauth/google/callback";
+export const GOOGLE_OAUTH_REDIRECT_PATH = "/oauth/google/callback";
 
 const gauthHmacKey = [
     crypto.generateKeySync('hmac', {length: 512}), 
@@ -36,7 +36,7 @@ setInterval(
 );     
 
 
-function verifyOauthState(req) {
+export function verifyOauthState(req) {
     const reqState = req.query.state;
     const statePayload = gauthHmacKey.reduceRight((acc, key) => {
         try {
@@ -52,7 +52,7 @@ function verifyOauthState(req) {
     return statePayload.redirect_uri;
 }
 
-function aesEncrypt(plaintext, key) {
+export function aesEncrypt(plaintext, key) {
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
     let cipherText = cipher.update(plaintext, 'utf8', ENCODING);
@@ -60,7 +60,7 @@ function aesEncrypt(plaintext, key) {
     return { iv: iv.toString(ENCODING), cipherText: cipherText, authTag: cipher.getAuthTag().toString(ENCODING) };
 }
 
-function aesDecrypt(cipherText, key, iv, authTag) {
+export function aesDecrypt(cipherText, key, iv, authTag) {
     try {
         const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
         decipher.setAuthTag(authTag);
@@ -72,7 +72,7 @@ function aesDecrypt(cipherText, key, iv, authTag) {
     }
 }
 
-class Auth {
+export class Auth {
     constructor(authSource) {
         this.authSource = authSource;
     }
@@ -103,7 +103,7 @@ class Auth {
 
 }
 
-class GoogleAuth extends Auth {
+export class GoogleAuth extends Auth {
     constructor() {
         super('google');
     }
@@ -234,7 +234,7 @@ class GoogleAuth extends Auth {
 
 }
 
-async function getAuthInstance(authSource, authData) {
+export async function getAuthInstance(authSource, authData) {
     switch (authSource) {
         case 'google':
             if (!authData['google'])
@@ -245,7 +245,7 @@ async function getAuthInstance(authSource, authData) {
     }
 }
 
-async function getAuthInstances(authData) {
+export async function getAuthInstances(authData) {
     const auth = {};
     for (const authSource in authData) {
         try {
@@ -257,12 +257,6 @@ async function getAuthInstances(authData) {
     return auth;
 }
 
-module.exports = {
-    GoogleAuth,
-    getAuthInstances,
-    verifyOauthState,
-    gauthHmacKey,
-};
 
 
 

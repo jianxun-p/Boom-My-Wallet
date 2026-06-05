@@ -2,6 +2,7 @@
   "name": "boommywallet",
   "version": "0.0.0",
   "description": "Boom My Wallet",
+  "type": "module",
   "main": "Server/server.js",
   "scripts": {
     "dev:server": "export PORT=4000; node --env-file=.env --watch Server/server.js",
