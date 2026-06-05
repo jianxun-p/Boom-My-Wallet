@@ -1,29 +1,27 @@
 import { useState, useEffect } from 'react';
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
 import './login.css';
 
 export function Footer() {
     const ls = { color: '#3182ce' };
     return <footer className='bg-white'>
         <p><u><a href="mailto:support@shimaodexibao.dpdns.org" style={ls}>support@shimaodexibao.dpdns.org</a></u></p>
-        <p><u><a href="/terms-of-service.html" style={ls}>Terms of Service</a></u> | <u><a href="/privacy-policy.html" style={ls}>Privacy Policy</a></u></p>
+        <p><u><a href="/terms-of-service" style={ls}>Terms of Service</a></u> | <u><a href="/privacy-policy" style={ls}>Privacy Policy</a></u></p>
     </footer>;
 }
 
-export function Login() {
-	
+export default function Login() {
 	const [errMsg, setErrMsg] = useState<string>("");
 
-	const params = new URLSearchParams(window.location.search);
-
 	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
 		setErrMsg(params.get('error') ?? "");
 	}, []);
+
+	const params = new URLSearchParams(window.location.search);
 	
 	const googleOauthSignIn = () => {
 		if (window.top) 
-			window.top.location.href = '/oauth/google/login?' + params.toString();
+			window.location.href = `${import.meta.env.VITE_API_BASE}/oauth/google/login?${params}`
 	};
 	
 	return <>
@@ -47,9 +45,3 @@ export function Login() {
 		</div>
 	</>;
 }
-
-createRoot(document.getElementById('root')!).render(
-	<StrictMode>
-		<Login />
-	</StrictMode>,
-);

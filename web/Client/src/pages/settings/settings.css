@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import '../style.css';
+@import '../../style.css';
 
 @layer components {
     @media (max-width: 768px) { /* mobile */
@@ -13,7 +13,7 @@
         }
     }
     .settings-wrapper {
-        @apply absolute m-auto w-(--width) left-[calc(50%-0.5*var(--width))];
+        @apply relative mx-auto w-(--width);
     }
     /* .add-transaction-btn {
         @apply rounded-2xl shadow-xl bg-secondary

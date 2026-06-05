@@ -1,5 +1,9 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
 
+@custom-variant dark (&:is(.dark *));
 
 input, textarea {
     @apply border-2 rounded-lg dark:bg-[#908040];
@@ -58,63 +62,60 @@ input, textarea {
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
     --tracking-normal: 0em;
     --spacing: 0.25rem;
-  
+
 }
 
-@media (prefers-color-scheme: dark) {
-    /* .dark { */
-    :root {
-        --background: #111111;
-        --foreground: #eeeeee;
-        --card: #191919;
-        --card-foreground: #eeeeee;
-        --popover: #191919;
-        --popover-foreground: #eeeeee;
-        --primary: #ffe0c2;
-        --primary-foreground: #081a1b;
-        --secondary: #393028;
-        --secondary-foreground: #ffe0c2;
-        --muted: #222222;
-        --muted-foreground: #b4b4b4;
-        --accent: #2a2a2a;
-        --accent-foreground: #eeeeee;
-        --destructive: #e54d2e;
-        --destructive-foreground: #ffffff;
-        --border: #201e18;
-        --input: #484848;
-        --ring: #ffe0c2;
-        --chart-1: #ffe0c2;
-        --chart-2: #393028;
-        --chart-3: #2a2a2a;
-        --chart-4: #42382e;
-        --chart-5: #ffe0c1;
-        --sidebar: #18181b;
-        --sidebar-foreground: #f4f4f5;
-        --sidebar-primary: #1d4ed8;
-        --sidebar-primary-foreground: #ffffff;
-        --sidebar-accent: #27272a;
-        --sidebar-accent-foreground: #f4f4f5;
-        --sidebar-border: #27272a;
-        --sidebar-ring: #d4d4d8;
-        --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-        --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-        --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        --radius: 0.5rem;
-        --shadow-x: 0;
-        --shadow-y: 1px;
-        --shadow-blur: 3px;
-        --shadow-spread: 0px;
-        --shadow-opacity: 0.1;
-        --shadow-color: oklch(0 0 0);
-        --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-        --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-        --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-        --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-        --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
-        --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
-        --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
-        --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
-    }
+.dark {
+    --background: #111111;
+    --foreground: #eeeeee;
+    --card: #191919;
+    --card-foreground: #eeeeee;
+    --popover: #191919;
+    --popover-foreground: #eeeeee;
+    --primary: #ffe0c2;
+    --primary-foreground: #081a1b;
+    --secondary: #393028;
+    --secondary-foreground: #ffe0c2;
+    --muted: #222222;
+    --muted-foreground: #b4b4b4;
+    --accent: #2a2a2a;
+    --accent-foreground: #eeeeee;
+    --destructive: #e54d2e;
+    --destructive-foreground: #ffffff;
+    --border: #201e18;
+    --input: #484848;
+    --ring: #ffe0c2;
+    --chart-1: #ffe0c2;
+    --chart-2: #393028;
+    --chart-3: #2a2a2a;
+    --chart-4: #42382e;
+    --chart-5: #ffe0c1;
+    --sidebar: #18181b;
+    --sidebar-foreground: #f4f4f5;
+    --sidebar-primary: #1d4ed8;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #27272a;
+    --sidebar-accent-foreground: #f4f4f5;
+    --sidebar-border: #27272a;
+    --sidebar-ring: #d4d4d8;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --radius: 0.5rem;
+    --shadow-x: 0;
+    --shadow-y: 1px;
+    --shadow-blur: 3px;
+    --shadow-spread: 0px;
+    --shadow-opacity: 0.1;
+    --shadow-color: oklch(0 0 0);
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
 }
 
 @theme inline {
@@ -151,7 +152,7 @@ input, textarea {
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --font-sans: var(--font-sans);
+  --font-sans: 'Inter Variable', sans-serif;
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
 
@@ -168,6 +169,10 @@ input, textarea {
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
   --shadow-2xl: var(--shadow-2xl);
+  --font-heading: var(--font-sans);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 :root {
@@ -192,7 +197,7 @@ input, textarea {
         grid bg-primary text-primary-foreground
         items-center justify-between;
     }
-    
+
     @media (max-width: 768px) { /* mobile */
         :root {
             --menubar-height: 50px;
@@ -256,7 +261,7 @@ input, textarea {
     }
     @media (max-width: 768px) { /* mobile */
         .content-wrapper {
-            @apply left-0 absolute right-0 overflow-auto bottom-(--menubar-height) top-0 wrap-break-word;
+            @apply ml-0 pb-(--menubar-height) wrap-break-word;
         }
         .menu-bar-item-text {
             @apply hidden;
@@ -264,7 +269,7 @@ input, textarea {
     }
     @media (min-width: 769px) {
         .content-wrapper {
-            @apply left-(--menubar-width) absolute right-0 overflow-auto bottom-0 top-0 wrap-break-word;
+            @apply ml-(--menubar-width) wrap-break-word;
         }
     }
     .ok-colour {
@@ -280,7 +285,6 @@ input, textarea {
         dark:bg-gray-600 dark:hover:bg-gray-500;
     }
 }
-
 
 @layer {
     @media (max-width: 768px) { /* mobile */
@@ -309,5 +313,17 @@ input, textarea {
         w-full
         justify-center
         p-3 font-bold font-mono text-3xl;
+    }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
     }
 }

@@ -22,7 +22,12 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+    
+    "baseUrl": "./Client",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["Client/src"]
 }

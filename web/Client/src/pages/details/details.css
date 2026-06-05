@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import '../style.css';
+@import '../../style.css';
 
 @layer components {
     @media (max-width: 768px) { /* mobile */
@@ -13,7 +13,7 @@
         }
     }
     .transaction-wrapper {
-        @apply absolute m-auto w-(--width) left-[calc(50%-0.5*var(--width))];
+        @apply m-auto w-(--width) left-[calc(50%-0.5*var(--width))];
     }
     .add-transaction-btn {
         @apply rounded-2xl shadow-xl bg-secondary
@@ -84,7 +84,7 @@
         @apply col-span-1 justify-end;
     }
     .connect-google-sheets-btn {
-        @apply bg-secondary rounded-md shadow-md max-w-[500px] w-[50%] p-3 m-auto text-center
+        @apply bg-secondary rounded-md shadow-md max-w-125 w-[50%] p-3 m-auto text-center
         hover:cursor-pointer hover:scale-105 transform duration-300 ease-in-out;
     }
 }
@@ -109,7 +109,7 @@
         fixed top-0 right-0 z-100 duration-300;
     }
     .modal-content {
-        --modal-content-width: calc(min(var(--modal-width), 600px));
+        --modal-content-width: calc(min(var(--modal-width), 700px));
         --modal-content-height: calc(min(var(--modal-height), 800px));
         @apply dark:bg-[#404030] bg-secondary absolute 
         overflow-y-auto

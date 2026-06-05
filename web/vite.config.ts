@@ -2,15 +2,22 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
-import { globSync } from 'glob';
+import type { AddressInfo } from 'net';
 
 
-const globExclude: string[] = []; // file paths to be excluded
-const inputHtmls = globSync('./Client/src/**/*.html')
-	.filter(fn => globExclude.every(exclude => fn !== exclude));	
+const proxy = {
+	'^/(api|oauth)': {
+		target: 'http://localhost:4000',
+		changeOrigin: true,
+	}
+};
+
+
+const inputHtmls = ['./Client/src/index.html']	
 
 // https://vite.dev/config/
 export default defineConfig({
+	
 	root: path.resolve(__dirname, 'Client', 'src'),
 	publicDir: path.resolve(__dirname, 'Client', 'src', 'public'),
 	build: {
@@ -27,14 +34,32 @@ export default defineConfig({
 				plugins: [['babel-plugin-react-compiler']],
 			},
 		}),
+		{
+			name: 'vite-plugin-log-requests',
+			configureServer(server) {
+				server.middlewares.use((req, res, next) => {
+					const url = req.url ?? "";
+					const isProxied = Object.keys(proxy).reduce(
+						(acc, pathRegex) => acc || Boolean(url.match(pathRegex)),
+						false
+					)
+					if (!isProxied) {
+						return next();
+					}
+					const addr = req.socket.address() as AddressInfo;
+					console.log(`[${new Date().toISOString()} ${addr.address}:${addr.port}] ${req.method} ${res.statusCode} ${url}`);
+					next();
+				});
+			},
+		},
 	],
+	resolve: {
+		alias: {
+			"@": path.resolve(__dirname, "./Client/src"),
+		},
+	},
 	server: {
 		port: 5000,
-		proxy: {
-			'^/(api|oauth)': {
-				target: 'http://localhost:4000',
-				changeOrigin: true,
-			}
-		}
+		proxy
 	}
 });

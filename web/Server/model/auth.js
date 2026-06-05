@@ -188,9 +188,10 @@ class GoogleAuth extends Auth {
 
         if (newAuthData.access_token) {
             this.accessToken = newAuthData.access_token;
-            this.accessTokenExpiry = Date.now() + (newAuthData.expires_in * 1000);
+            const now = Date.now();
+            this.accessTokenExpiry = now + (Number(newAuthData.expires_in) * 1000);
             this.hasAllScopes = GoogleAuth.requiredScopes().every(scope => newAuthData.scope.includes(scope));
-        }
+        }W
 
         const emails = (this.authData?.email ?? []).filter(email => email !== newAuthData.email).concat(newAuthData.email);
 

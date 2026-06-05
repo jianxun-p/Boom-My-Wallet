@@ -1,6 +1,7 @@
 const { UnAuthError, AppError } = require('../apperror');
 const { database } = require('../db');
 const { ApiKey } = require('./apikey');
+const jwt = require('jsonwebtoken');
 
 const { getAuthInstances } = require('./auth');
 
@@ -65,7 +66,7 @@ class User {
         return user;
     }
 
-    static async apiCall(uid, req) {
+    static async apiCall(uid, req, sessionSecret) {
         const docRef = await database().collection(COLLETCTION).doc(uid);
         if (!docRef) {
             throw new UnAuthError();
@@ -74,7 +75,17 @@ class User {
         if (!docData) {
             throw new UnAuthError();
         }
-        if (!req.session.user?.uid) {
+        let verified = false;
+
+        try {
+            const tokenPayload = jwt.verify(req.headers['token'] ?? '', sessionSecret ?? Buffer.empty);
+            verified = tokenPayload?.uid === uid;
+        } catch { }
+        if (Boolean(req.headers['token']) && !verified) {
+            throw new UnAuthError("Bad Boy ~ Don't try to hack us ~");
+        }
+
+        if (!verified) {
             const apikey = req.headers['authorization']?.replace(/^Bearer /g, '');
             const apiKeyObj = ApiKey.findApiKeys(apikey, docData.apikeys);
             if (!apiKeyObj) {

@@ -16,7 +16,6 @@ COPY --from=build /app/package*.json ./
 RUN npm install --omit=dev
 COPY --from=build /app/Client/dist ./Client/dist
 COPY Server ./Server
-COPY boommywallet-config.json ./
 
 # Use a non-root user for security best practices
 USER node

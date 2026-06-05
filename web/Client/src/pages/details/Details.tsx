@@ -1,10 +1,14 @@
 import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { useEffect } from 'react';
-import { deleteRow, updateValues } from '../google-drive';
-import { rangeA1 } from '../google-drive';
-import { type Spreadsheet, Transaction } from '../google-drive';
+import { deleteRow, updateValues, type Spreadsheet, Transaction, rangeA1, transactionToRow } from '@/platforms/GoogleDrive';
 import './details.css';
-import { Footer } from '../footer';
+import { initSpreadsheet } from '@/platforms/GoogleDrive'
+import Loading from '@/components/Loading';
+import { useUser } from '@/middleware/Context';
+import type { User } from '@/types/user';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 const TRANSACTION_SHEET_NAME = 'transactions';
 
@@ -73,7 +77,7 @@ function DropDownList(
         setOpen(prev => !prev);
     };
     return <div className='dropdown-container'>
-        <input className='dropdown' value={props.val.get} readOnly={props.noInput} onChange={(e) => props.val.set(e.target.value)} ref={inputRef} />
+        <Input className='' value={props.val.get} readOnly={props.noInput} onChange={(e) => props.val.set(e.target.value)} ref={inputRef} />
         <div className={open && props.allowChoose ? 'dropdown-list h-52' : 'dropdown-list h-0'}>
             {props.list.map(i => {return <div className='dropdown-list-item' onClick={()=>{props.val.set(i.toString());setOpen(false);}}>{i.toString()}</div>;})}
         </div>
@@ -120,8 +124,8 @@ function DatetimeSelector(
     props.closeHandler.current = (event) => dropDowns.forEach(d => d.current(event));
     return <div className='datetime-selector-container'>
         <div className='date-selector-container'>
-            <div className='w-[40%] min-w-[54px] text-center'><DropDownList list={YEARS} val={{get: year, set: filteredSetNum(setYear)}} closeHandler={dropDowns[0]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
-            <b className='mx-1'>-</b><div className='w-[30%] min-w-[50px] text-center'><DropDownList list={MONTHS} val={{get: month, set: setMonth}} closeHandler={dropDowns[1]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+            <div className='w-[40%] min-w-13.5 text-center'><DropDownList list={YEARS} val={{get: year, set: filteredSetNum(setYear)}} closeHandler={dropDowns[0]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
+            <b className='mx-1'>-</b><div className='w-[30%] min-w-12.5 text-center'><DropDownList list={MONTHS} val={{get: month, set: setMonth}} closeHandler={dropDowns[1]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
             <b className='mx-1'>-</b><div className='w-[20%] min-w-10 text-center'><DropDownList list={[...Array(31).keys()].map(i=>i+1).map(i=>i.toString().padStart(2,'0'))} val={{get: day, set: filteredSetNum(setDay)}} closeHandler={dropDowns[2]} noInput={props.noInput} allowChoose={props.allowChoose} /></div>
         </div>
         <div className='time-selector-container'>
@@ -148,7 +152,7 @@ function DetailModal(
     props: {
         transaction: State<Transaction | null>, 
         spreadsheet: State<Spreadsheet>, 
-        accessToken: string, 
+        user: User, 
         categories: State<string[]>,
         paymentMethods: State<string[]>,
     }
@@ -201,12 +205,6 @@ function DetailModal(
             newTran.category = newCategory;
             return newTran;
         });
-        props.categories.set((prev)=>{
-            if (prev.indexOf(newCategory) >= 0) return prev;
-            const a = [...prev];
-            a.push(newCategory);
-            return a;
-        });
     };
     const setPaymentMethodHandler = (c: string | ((prev:string)=>string)) => {
         let newPaymentMethod = '';
@@ -241,8 +239,8 @@ function DetailModal(
     
     function saveTransactionDetail(v: Transaction | null) {
         if (v === null) return null;
-        const position = v.position.split(',');
-        const row = [(date ?? new Date()).toString(), restrictMoneyInput(amount), v.category, v.name, v.merchant, v.paymentMethod, v.location, position[0].trim(), (position[1]??'').trim(), v.description];
+        const row = transactionToRow(v)
+        // const row = [(date ?? new Date()).toString(), restrictMoneyInput(amount), v.category, v.name, v.merchant, v.paymentMethod, v.location, v.latitude, v.latitude, v.description];
         props.spreadsheet.set((spread) => {
             const sheetIndex = spread.sheets.findIndex(sheet => sheet.name === TRANSACTION_SHEET_NAME);
             if (sheetIndex < 0) {
@@ -256,11 +254,14 @@ function DetailModal(
                 sheets: spread.sheets,
             };
         });
-        updateValues(props.accessToken, props.spreadsheet.get.id, rangeA1(TRANSACTION_SHEET_NAME, [0, v.row+1], [row.length-1,v.row+1]), [row])
-        .then(data => {
-            console.log('updateValues', data); 
-            alert(data.updatedRows === 1 ? 'Saved' : 'Error occured while saving');
-        });
+        if (props.user.google?.accessToken) {
+            const rowNum = v.row + 1; // starting from 1
+            updateValues(props.user.google.accessToken, props.spreadsheet.get.id, rangeA1(TRANSACTION_SHEET_NAME, [0, rowNum], [row.length-1, rowNum]), [row])
+            .then(data => {
+                console.log('updateValues', data); 
+                alert(data.updatedRows === 1 ? 'Saved' : 'Error occured while saving');
+            });
+        }
         return v;
     }
     function deleteTransaction(v: Transaction | null) {
@@ -278,7 +279,8 @@ function DetailModal(
                 sheets: spread.sheets,
             };
         });
-        deleteRow(props.accessToken, props.spreadsheet.get.id, transactionSheet.id, (v.row ?? 0) + 1).then(data => console.log('deleteRow', data));
+        if (props.user.google?.accessToken)
+            deleteRow(props.user.google.accessToken, props.spreadsheet.get.id, transactionSheet.id, (v.row ?? 0) + 1).then(data => console.log('deleteRow', data));
         return v;
     }
     const emptyEventHandler = () => {};
@@ -301,24 +303,88 @@ function DetailModal(
             <div className='modal-items'>
                 <strong className='modal-item-label'>Datetime</strong>
                 <div className='modal-item-value'><DatetimeSelector date={{get: date, set: setDate}} closeHandler={dropDown0} noInput={!editMode} allowChoose={editMode} /></div>
-                <strong className='modal-item-label'>Amount</strong>
-                <div className='modal-item-value'><input readOnly={!editMode} value={amount} onChange={setTransactionFieldHandler('amount')} ref={amountRef} /></div>
-                <strong className='modal-item-label'>Category</strong>
-                <div className='modal-item-value'>
-                    <DropDownList allowChoose={editMode} noInput={!editMode} val={{get:category,set:setCategoryHandler}} closeHandler={dropDown1} list={props.categories.get} />
+                
+                {/* Amount */}
+                <Label htmlFor="amount" className="sm:col-span-1">Amount</Label>
+                <div className="sm:col-span-3">
+                    <Input 
+                        id="amount"
+                        readOnly={!editMode} 
+                        value={amount} 
+                        onChange={setTransactionFieldHandler('amount')} 
+                        ref={amountRef} 
+                    />
                 </div>
-                <strong className='modal-item-label'>Merchant</strong>
-                <div className='modal-item-value'><input readOnly={!editMode} value={props.transaction.get?.merchant ?? ''} onChange={setTransactionFieldHandler('merchant')} /></div>
-                <strong className='modal-item-label'>Payment Method</strong>
-                <div className='modal-item-value'>
-                    <DropDownList allowChoose={editMode} noInput={!editMode} val={{get:paymentMethod,set:setPaymentMethodHandler}} closeHandler={dropDown2} list={props.paymentMethods.get} />
+
+                {/* Category */}
+                <Label className="sm:col-span-1">Category</Label>
+                <div className="sm:col-span-3">
+                    <DropDownList 
+                        allowChoose={editMode} 
+                        noInput={!editMode} 
+                        val={{ get: category, set: setCategoryHandler }} 
+                        closeHandler={dropDown1} 
+                        list={props.categories.get} 
+                    />
                 </div>
-                <strong className='modal-item-label'>Location</strong>
-                <div className='modal-item-value'><input readOnly={!editMode} value={props.transaction.get?.location ?? ''} onChange={setTransactionFieldHandler('location')} /></div>
-                <strong className='modal-item-label'>Position</strong>
-                <div className='modal-item-value'><input readOnly={!editMode} value={props.transaction.get?.position ?? ''} onChange={setTransactionFieldHandler('position')} /></div>
-                <strong className='col-span-full'>Description</strong>
-                <div className='col-span-full **self-start**'><textarea readOnly={!editMode} value={props.transaction.get?.description ?? ''} onChange={setTransactionFieldHandler('description')} className='h-auto resize-y'/></div>
+
+                {/* Merchant */}
+                <Label htmlFor="merchant" className="sm:col-span-1">Merchant</Label>
+                <div className="sm:col-span-3">
+                    <Input 
+                        id="merchant"
+                        readOnly={!editMode} 
+                        value={props.transaction.get?.merchant ?? ''} 
+                        onChange={setTransactionFieldHandler('merchant')} 
+                    />
+                </div>
+
+                {/* Payment Method */}
+                <Label className="sm:col-span-1">Payment Method</Label>
+                <div className="sm:col-span-3">
+                    <DropDownList 
+                        allowChoose={editMode} 
+                        noInput={!editMode} 
+                        val={{ get: paymentMethod, set: setPaymentMethodHandler }} 
+                        closeHandler={dropDown2} 
+                        list={props.paymentMethods.get} 
+                    />
+                </div>
+
+                {/* Location */}
+                <Label htmlFor="location" className="sm:col-span-1">Location</Label>
+                <div className="sm:col-span-3">
+                    <Input 
+                        id="location"
+                        readOnly={!editMode} 
+                        value={props.transaction.get?.location ?? ''} 
+                        onChange={setTransactionFieldHandler('location')} 
+                    />
+                </div>
+
+                {/* Position */}
+                <Label htmlFor="position" className="sm:col-span-1">Position</Label>
+                <div className="sm:col-span-3">
+                    <Input 
+                        id="position"
+                        readOnly={!editMode} 
+                        value={props.transaction.get?.position ?? ''} 
+                        onChange={setTransactionFieldHandler('position')} 
+                    />
+                </div>
+
+                {/* Description */}
+                <Label htmlFor="description" className="sm:col-span-1 self-start mt-2">Description</Label>
+                <div className="sm:col-span-3">
+                    <Textarea 
+                        id="description"
+                        readOnly={!editMode} 
+                        value={props.transaction.get?.description ?? ''} 
+                        onChange={setTransactionFieldHandler('description')} 
+                        className="min-h-25 resize-y"
+                    />
+                </div>
+            
             </div>
             <div className='left-0 bottom-0 w-full pt-2 px-4 flex justify-between'>
                 <div className='flex justify-start'>
@@ -348,17 +414,37 @@ function ConnectGoogleSheets() {
     </>;
 }
 
-export default function Details(
-    {spreadsheet, accessToken}: {spreadsheet: State<Spreadsheet | null>, accessToken: string}
-) {
+export default function Details() {
+    const user = useUser();
+    const [spreadsheet, setSpreadsheet] = useState<Spreadsheet | null>(null);
     const [transactionsByMonth, setTransactionsByMonth] = useState<Transaction[][]>([]);
-    
     const transactionSheet = useMemo(
-        () => (spreadsheet.get?.sheets ?? []).filter(sheet => sheet.name === TRANSACTION_SHEET_NAME)[0] ?? {name: TRANSACTION_SHEET_NAME, columns: [], values: []}, 
-        [spreadsheet.get?.sheets]
+        () => (spreadsheet?.sheets ?? []).filter(sheet => sheet.name === TRANSACTION_SHEET_NAME)[0] ?? {name: TRANSACTION_SHEET_NAME, columns: [], values: []}, 
+        [spreadsheet?.sheets]
     );
     const [categories, setCategories] = useState<string[]>([]);
     const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
+    const [loading, setLoading] = useState(Boolean(user.loaded));
+
+    const loaded = useRef(false);
+    useEffect(() => {
+        if (loaded.current || !user.google)
+            return;
+        setLoading(true);
+        initSpreadsheet(user)
+            .then(spread => { 
+                if (spread) {
+                    setSpreadsheet(spread);
+                    
+                }
+            })
+            .catch((e) => {
+                console.error("Failed to initialize spreadsheet:", e)
+            })
+            .finally(() => setLoading(false))
+            .finally(() => loaded.current = true);
+    }, [user])
+
     useEffect(() => {
         const t = transactionSheet.values.map((row, rowI) => {
             return new Transaction(row, rowI);
@@ -375,18 +461,22 @@ export default function Details(
             tByMonth.push(monthlyTransactions);
         }
         setTransactionsByMonth(tByMonth);
-    }, [spreadsheet.get, setTransactionsByMonth, transactionSheet]);
+    }, [spreadsheet, setTransactionsByMonth, transactionSheet]);
 
     const [transactionDetail, setTransactionDetail] = useState<Transaction | null>(null);
 
-    if (!spreadsheet.get)
-        return <ConnectGoogleSheets />;
+    if (!spreadsheet)
+        return <div>
+            <Loading loading={loading}/>
+            <ConnectGoogleSheets />
+        </div>;
 
-    return <>
+    return <div>
+        <Loading loading={loading}/>
         <DetailModal 
             transaction={{get: transactionDetail, set: setTransactionDetail}} 
-            spreadsheet={spreadsheet as State<Spreadsheet>} 
-            accessToken={accessToken} 
+            spreadsheet={{get: spreadsheet, set: setSpreadsheet} as State<Spreadsheet>} 
+            user={user} 
             categories={{get: categories, set: setCategories}}
             paymentMethods={{get: paymentMethods, set: setPaymentMethods}}
         />
@@ -404,7 +494,6 @@ export default function Details(
                     </div>
                 </section>;
             })}
-            <Footer />
         </div>
-    </>;
+    </div>;
 }

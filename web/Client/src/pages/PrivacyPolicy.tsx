@@ -1,8 +1,6 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
 import '../style.css';
 
-export function PrivacyPolicy() {
+export default function PrivacyPolicy() {
 
     return (
         <div style={{ maxWidth: '800px', margin: '0 auto', padding: '40px 20px', lineHeight: '1.6', color: '#4a5568', fontFamily: 'sans-serif' }}>
@@ -79,10 +77,3 @@ export function PrivacyPolicy() {
         </div>
     );
 }
-
-
-createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-        <PrivacyPolicy />
-    </StrictMode>,
-)
