@@ -13,14 +13,20 @@
 .git
 .gitignore
 
-Client/dist/
+Client/
+Server/
 
+.prettierrc
+.prettierignore
+prettier.config.mjs
+
+
+mise.toml
 Dockerfile
 .dockerignore
 compose.yml
 .env
-.env.example
-
+.env.*
 
 # Node.js dependencies:
 node_modules/

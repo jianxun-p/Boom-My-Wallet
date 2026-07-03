@@ -1,0 +1,119 @@
+[tools]
+node = "24"
+
+[tasks.install]
+description = "Install client and server dependencies from lockfiles"
+run = [
+  { task = "server:install" },
+  { task = "client:install" },
+]
+
+[tasks.clean]
+description = "Remove generated web build artifacts"
+run = "rm -rf dist Server/dist Client/dist"
+
+[tasks.format]
+description = "Format the client and server packages"
+run = [
+  "npm run format --prefix Client",
+  "npm run format --prefix Server",
+]
+
+[tasks."format:check"]
+description = "Check formatting for the client and server packages"
+run = [
+  "npm run format:check --prefix Client",
+  "npm run format:check --prefix Server",
+]
+
+[tasks."server:install"]
+description = "Install server dependencies from the lockfile"
+dir = "Server"
+run = "npm ci"
+
+[tasks."server:install:dev"]
+description = "Install server dependencies for development"
+dir = "Server"
+run = "npm install"
+
+[tasks."server:build"]
+description = "Build the server"
+dir = "Server"
+run = [
+  { task = "server:install" },
+  "npx eslint",
+  "npx tsc",
+  "npx tsc-alias",
+]
+
+[tasks."client:install"]
+description = "Install client dependencies from the lockfile"
+dir = "Client"
+run = "npm ci"
+
+[tasks."client:install:dev"]
+description = "Install client dependencies for development"
+dir = "Client"
+run = "npm install"
+
+[tasks."client:build"]
+description = "Build the client"
+dir = "Client"
+run = [
+  { task = "client:install" },
+  "npm run build",
+]
+
+[tasks.package]
+description = "Assemble the App Engine artifact in dist"
+dir = ""
+run = [
+  "mv Server/dist dist",
+  "mv Client/dist dist/static",
+  "cp Server/package.json Server/package-lock.json dist/",
+  "cp app.yaml .gcloudignore dist/",
+]
+
+[tasks.build]
+description = "Build and package the App Engine artifact in dist"
+run = [
+  { task = "clean" },
+  { task = "server:build" },
+  { task = "client:build" },
+  { task = "package" },
+]
+
+[tasks.dev]
+description = "Install dependencies and run the API and Vite dev servers"
+run = [
+  { task = "server:install:dev" },
+  { task = "client:install:dev" },
+  '''
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  (cd "$MISE_CONFIG_ROOT/Server" && npm run dev) &
+  server_pid=$!
+
+  (cd "$MISE_CONFIG_ROOT/Client" && npm run dev) &
+  client_pid=$!
+
+  cleanup() {
+    kill "$server_pid" "$client_pid" 2>/dev/null || true
+  }
+
+  trap cleanup EXIT INT TERM
+  wait -n "$server_pid" "$client_pid"
+  ''',
+]
+
+[tasks."dev:compose"]
+description = "Start the development stack with Podman Compose"
+dir = ".."
+run = "podman compose up --build"
+
+[tasks.deploy]
+description = "Build and deploy dist to Google App Engine"
+depends = ["build"]
+dir = "dist"
+run = "gcloud app deploy"

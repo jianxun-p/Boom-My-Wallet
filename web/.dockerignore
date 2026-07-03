@@ -3,12 +3,11 @@ README.md
 .env
 .env.example
 
+.agents
 .vscode
 .git
 .gitignore
 
-.gcloudignore
-app.yaml
-
-/web/Clinet/dist
-
+dist
+.prettierignore
+prettier.config.mjs

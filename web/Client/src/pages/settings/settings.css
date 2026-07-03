@@ -1,102 +1,100 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @import '../../style.css';
 
 @layer components {
-    @media (max-width: 768px) { /* mobile */
-        .settings-wrapper {
-            --width: calc(100%);
-        }
-    }
-    @media (min-width: 769px) {
-        .settings-wrapper {
-            --width: calc(min(85%, 900px));
-        }
-    }
+  @media (max-width: 768px) {
+    /* mobile */
     .settings-wrapper {
-        @apply relative mx-auto w-(--width);
+      --width: calc(100%);
     }
-    /* .add-transaction-btn {
+  }
+  @media (min-width: 769px) {
+    .settings-wrapper {
+      --width: calc(min(85%, 900px));
+    }
+  }
+  .settings-wrapper {
+    @apply relative mx-auto w-(--width);
+  }
+  /* .add-transaction-btn {
         @apply rounded-2xl shadow-xl bg-secondary
         hover:scale-[105%] hover:bg-secondary/80 hover:cursor-pointer
         text-center p-2 mx-8
         fixed right-0 m-4 z-50;
     } */
-    @media (max-width: 768px) { /* mobile */
-        section {
-            --section-margin: calc(var(--spacing) * 2);
-        }
-        /* .add-transaction-btn {
+  @media (max-width: 768px) {
+    /* mobile */
+    section {
+      --section-margin: calc(var(--spacing) * 2);
+    }
+    /* .add-transaction-btn {
             @apply bottom-(--menubar-height);
         } */
+  }
+  @media (min-width: 769px) {
+    section {
+      --section-margin: calc(var(--spacing) * 8);
     }
-    @media (min-width: 769px) {
-        section {
-            --section-margin: calc(var(--spacing) * 8);
-        }
-        /* .add-settings-btn {
+    /* .add-settings-btn {
             @apply bottom-0;
         } */
-    }
-    section {
-        @apply rounded-2xl shadow-xl bg-secondary
+  }
+  section {
+    @apply rounded-2xl shadow-xl bg-secondary
         p-2 m-(--section-margin);
-    }
-    h1{
-        @apply
-        w-full
+  }
+  h1 {
+    @apply w-full
         justify-center
         p-4 font-bold font-mono text-5xl;
-    }
-    h2{
-        @apply
-        w-full
+  }
+  h2 {
+    @apply w-full
         justify-center
         p-3 font-bold font-mono text-3xl;
-    }
-    .settings-content{
-        @apply w-full;
-    }
-    .settings-section-header {
-        @apply flex items-center justify-between;
-    }
-    .settings-add-button {
-        @apply rounded-xl bg-chart-4 text-secondary-foreground px-4 py-2 mr-3 font-semibold
+  }
+  .settings-content {
+    @apply w-full;
+  }
+  .settings-section-header {
+    @apply flex items-center justify-between;
+  }
+  .settings-add-button {
+    @apply rounded-xl bg-chart-4 text-secondary-foreground px-4 py-2 mr-3 font-semibold
         hover:cursor-pointer hover:bg-chart-4/80;
-    }
-    .settings-feedback {
-        @apply rounded-xl bg-amber-100/70 text-black p-2 mb-2 break-all;
-    }
-    .settings-error {
-        @apply rounded-xl bg-destructive/20 text-destructive p-2 mb-2;
-    }
-    .settings-header-row {
-        @apply 
-        w-full p-2
+  }
+  .settings-feedback {
+    @apply rounded-xl bg-amber-100/70 text-black p-2 mb-2 break-all;
+  }
+  .settings-error {
+    @apply rounded-xl bg-destructive/20 text-destructive p-2 mb-2;
+  }
+  .settings-header-row {
+    @apply w-full p-2
         grid grid-cols-5 grid-rows-1
-        rounded-xl shadow-2xs bg-[#c68800a0]
-    }
-    .settings-item {
-        @apply 
-        w-full p-2
+        rounded-xl shadow-2xs bg-[#c68800a0];
+  }
+  .settings-item {
+    @apply w-full p-2
         grid grid-cols-5 grid-rows-1 items-center
         rounded-xl shadow-2xs bg-chart-3 text-secondary-foreground 
         duration-150
         hover:scale-[102%] hover:cursor-pointer hover:bg-chart-3/80;
-    }
-    .settings-item-name {
-        @apply col-span-2;
-    }
-    .settings-item-value {
-        @apply col-span-3;
-    }
-    .settings-context-menu {
-        @apply fixed z-50 rounded-lg bg-card p-1 shadow-2xl border border-border;
-    }
-    .settings-context-menu-delete {
-        @apply rounded-md bg-destructive text-destructive-foreground px-3 py-2 text-sm font-semibold
+  }
+  .settings-item-name {
+    @apply col-span-2;
+  }
+  .settings-item-value {
+    @apply col-span-3;
+  }
+  .settings-context-menu {
+    @apply fixed z-50 rounded-lg bg-card p-1 shadow-2xl border border-border;
+  }
+  .settings-context-menu-delete {
+    @apply rounded-md bg-destructive text-destructive-foreground px-3 py-2 text-sm font-semibold
         hover:cursor-pointer hover:bg-destructive/80;
-    }
-    .settings-context-menu-backdrop {
-        @apply fixed inset-0 z-40;
-    }
+  }
+  .settings-context-menu-backdrop {
+    @apply fixed inset-0 z-40;
+  }
 }

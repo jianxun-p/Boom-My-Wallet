@@ -15,6 +15,17 @@ automatic_scaling:
 
 handlers:
 # For static handlers, the files must exists when the app is deployed, so we serve the built client files directly from the server's static directory.
+- url: /
+  static_files: static/index.html
+  upload: static/index.html
+  http_headers:
+    X-Frame-Options: "SAMEORIGIN"
+
+# Route all URLs ending with an asset extension to the same relative path
+- url: /assets
+  static_dir: static/assets
+  http_headers:
+    X-Frame-Options: "SAMEORIGIN"
 
 # Fallback to your Node.js server for everything else
 - url: /.*

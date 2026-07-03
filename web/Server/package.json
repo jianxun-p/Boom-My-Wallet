@@ -1,0 +1,47 @@
+{
+  "name": "boommywallet-backend",
+  "version": "0.0.0",
+  "description": "Boom My Wallet",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "npx tsx --env-file=.env --watch src/server.ts",
+    "build": "echo \"See README.md for build instructions.\"",
+    "build:dev": "eslint && tsc -p tsconfig.dev.json && tsc-alias",
+    "format": "prettier --write . --config ../prettier.config.mjs --ignore-path ../.prettierignore --ignore-unknown",
+    "format:check": "prettier --check . --config ../prettier.config.mjs --ignore-path ../.prettierignore --ignore-unknown"
+  },
+  "author": "panjianxun88@gmail.com",
+  "dependencies": {
+    "@google-cloud/firestore": "^8.6.0",
+    "@google-cloud/secret-manager": "^6.1.1",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^7.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/express": "^4.17.25",
+    "@types/express-session": "^1.19.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.6.0",
+    "eslint": "^9.36.0",
+    "globals": "^16.4.0",
+    "prettier": "^3.9.4",
+    "rimraf": "^6.1.0",
+    "tsc-alias": "^1.8.17",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.45.0"
+  },
+  "overrides": {
+    "gaxios": {
+      "rimraf": "^6.1.0"
+    },
+    "google-gax": {
+      "rimraf": "^6.1.0"
+    }
+  }
+}

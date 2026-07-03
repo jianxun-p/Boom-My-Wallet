@@ -10,7 +10,7 @@ Need to setup a Project on Google Cloud Platform.
 
 ### OAuth 2.0 and APIs
 
-Go to `APIs & Services`, then `Credentials`. Create a new OAuth 2.0 Client ID with the correct authorized redirect URIs (e.g. `http://localhost:5000/oauth/google/callback`).
+Go to `APIs & Services`, then `Credentials`. Create a new OAuth 2.0 Client ID with the correct authorized redirect URIs (e.g. `http://localhost:5000/oauth/callback`).
 
 Save the client secrets.
 
@@ -37,32 +37,34 @@ The value would be a JSON string:
 
 ```json
 {
-    "service_account": THE_JSON_OBJECT_FOR_THE_SERVICE_ACCOUNT_KEY_YOU_HAVE_SAVED,
-    "google_oauth": THE_JSON_OBJECT_FOR_THE_CLIENT_SECRET_YOU_HAVE_SAVED,
-    "refresh_token_encryption_key": BASE64_ENCODED_RANDOMLY_GENERATED_32_BYTES
+    "service_account": "THE_JSON_OBJECT_FOR_THE_SERVICE_ACCOUNT_KEY_YOU_HAVE_SAVED",
+    "google_oauth": "THE_JSON_OBJECT_FOR_THE_CLIENT_SECRET_YOU_HAVE_SAVED",
+    "refresh_token_encryption_key": "BASE64_ENCODED_RANDOMLY_GENERATED_32_BYTES"
 }
 ```
 
 ### Deploy to App Engine (Google Cloud Platform)
 
-Install the [Google Cloud CLI](https://docs.cloud.google.com/sdk/docs/install-sdk). 
+Install the [Google Cloud CLI](https://docs.cloud.google.com/sdk/docs/install-sdk).
+Install [mise](https://mise.jdx.dev/getting-started.html), then install the project toolchain:
 
 Set up Google Cloud CLI (account, project, etc...).
 
 ```bash
+mise install
 gcloud init
 gcloud auth application-default login
 ```
 
 ```bash
-gcloud app deploy
+mise run deploy
 ```
 
 ### Deploy with Docker Compose
 
 Switch to the `web` directory.
 
-Copy `.env.example` to `.env`, and replace the values.
+Copy `Server/.env.example` to `Server/.env` and `Client/src/.env.example` to `Client/src/.env`, then replace the values.
 
 
 ```bash
@@ -71,12 +73,15 @@ docker compose up --build -d
 
 ### Develop
 
-Switch to the `web` directory.
-
-Copy `.env.example` to `.env`, and replace the values.
+Copy `web/Server/.env.example` to `web/Server/.env` and `web/Client/src/.env.example` to `web/Client/src/.env`, then replace the values.
 
 ```bash
-npm install
-npm run dev
+mise install
+mise run dev
 ```
 
+### Build
+
+```bash
+mise run build
+```

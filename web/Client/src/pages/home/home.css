@@ -1,11 +1,10 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @import '../../style.css';
 
 @layer components {
-    h1{
-        @apply
-        w-full
+  h1 {
+    @apply w-full
         justify-center
         p-4 font-bold font-mono text-5xl;
-    }
+  }
 }

@@ -5,7 +5,7 @@ services:
     expose:
       - "5000"
     env_file:
-      - ./web/.env
+      - ./web/Server/.env
     networks:
       - backend-network
       - frontend-network
@@ -23,7 +23,7 @@ services:
       - frontend-network
   
   mongodb:
-    image: mongo
+    image: docker.io/library/mongo
     expose:
       - "27017"
     env_file:
